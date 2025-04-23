@@ -1,0 +1,40 @@
+[build]
+  command = "npm run build"
+  publish = ".next"
+  functions = "netlify/functions"
+
+[[plugins]]
+  package = "@netlify/plugin-nextjs"
+
+# Add this dev block
+## Local Dev Configuration
+[dev]
+  # Use Next.js development server rather than production start
+  command = "npm run dev:next"
+  functions = "netlify/functions"
+  identity = true      # Turn on the GoTrue emulator
+  jwtRolePath = "user_metadata.role"
+  jwtSecret = "YOUR_JWT_SECRET_HERE"
+  https = { keyFile = "localhost-key.pem", certFile = "localhost.pem" }
+
+# Redirects for client-side SPA routing
+# [[redirects]]
+#   from = "/*"
+#   to = "/index.html"
+#   status = 200
+#   # conditions = {Role = ["admin", "standard"]}
+
+# Protect admin routes
+[[redirects]]
+  from = "/admin/*"
+  to = "/login"
+  status = 302
+  conditions = {Role = ["!admin"]}
+  
+# Redirect unauthenticated users to login
+[[redirects]]
+  from = "/dashboard/*"
+  to = "/login"
+  status = 302
+  force = true
+  conditions = {Role = []}

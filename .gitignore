@@ -1,0 +1,21 @@
+# Local Netlify folder
+.netlify
+
+# Node modules
+node_modules/
+
+# Next.js build output
+.next/
+
+# Local environment variables
+.env.local
+.env.*.local
+
+# mkcert TLS certificates
+localhost.pem
+localhost-key.pem
+
+# IDE and OS files
+.vscode/
+.idea/
+.DS_Store

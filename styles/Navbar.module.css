@@ -1,0 +1,158 @@
+.navbar {
+    background-color: white;
+    box-shadow: var(--shadow);
+    height: 64px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  
+  .navbarContainer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    height: 100%;
+    padding: 0 var(--spacing-4);
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+  
+  .logo {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--primary-dark);
+    text-decoration: none;
+  }
+  
+  .logo:hover {
+    text-decoration: none;
+    color: var(--primary);
+  }
+  
+  .navLinks {
+    display: flex;
+    align-items: center;
+  }
+  
+  .navLink {
+    margin-left: var(--spacing-6);
+    font-weight: 500;
+    color: var(--gray-700);
+    transition: color 0.2s;
+  }
+  
+  .navLink:hover {
+    color: var(--primary);
+    text-decoration: none;
+  }
+  
+  .active {
+    color: var(--primary);
+    font-weight: 600;
+  }
+  
+  .signupLink {
+    background-color: var(--primary);
+    color: white;
+    padding: var(--spacing-2) var(--spacing-4);
+    border-radius: var(--border-radius-full);
+  }
+  
+  .signupLink:hover {
+    background-color: var(--primary-dark);
+    color: white;
+    text-decoration: none;
+  }
+  
+  .signupLink.active {
+    background-color: var(--primary-dark);
+    color: white;
+  }
+  
+  .userSection {
+    display: flex;
+    align-items: center;
+    margin-left: var(--spacing-6);
+  }
+  
+  .userInfo {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    margin-right: var(--spacing-4);
+  }
+  
+  .userName {
+    font-weight: 600;
+    color: var(--gray-800);
+    font-size: 0.875rem;
+  }
+  
+  .roleBadge {
+    display: inline-block;
+    font-size: 0.75rem;
+    padding: 0.125rem 0.5rem;
+    border-radius: var(--border-radius-full);
+    font-weight: 500;
+    text-transform: capitalize;
+  }
+  
+  .adminBadge {
+    background-color: var(--primary-light);
+    color: var(--primary-dark);
+  }
+  
+  .standardBadge {
+    background-color: var(--gray-200);
+    color: var(--gray-700);
+  }
+  
+  .logoutButton {
+    background-color: transparent;
+    border: 1px solid var(--gray-300);
+    color: var(--gray-700);
+    padding: var(--spacing-2) var(--spacing-4);
+    border-radius: var(--border-radius);
+    font-size: 0.875rem;
+    transition: all 0.2s;
+  }
+  
+  .logoutButton:hover {
+    background-color: var(--gray-100);
+    border-color: var(--gray-400);
+  }
+  
+  /* Mobile menu button - shown on small screens */
+  .mobileMenuButton {
+    display: none;
+  }
+  
+  @media (max-width: 768px) {
+    .navLinks {
+      display: none;
+      position: absolute;
+      top: 64px;
+      left: 0;
+      right: 0;
+      flex-direction: column;
+      background-color: white;
+      padding: var(--spacing-4);
+      box-shadow: var(--shadow-md);
+    }
+    
+    .navLinks.open {
+      display: flex;
+    }
+    
+    .navLink {
+      margin: var(--spacing-2) 0;
+    }
+    
+    .mobileMenuButton {
+      display: block;
+      background: none;
+      border: none;
+      color: var(--gray-700);
+      font-size: 1.5rem;
+    }
+  }

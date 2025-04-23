@@ -1,0 +1,250 @@
+.container {
+    width: 100%;
+    height: 100%;
+  }
+  
+  .loading, .error {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 400px;
+    font-size: 1.125rem;
+  }
+  
+  .loading {
+    color: var(--gray-500);
+  }
+  
+  .loading::after {
+    content: "";
+    width: 1.5rem;
+    height: 1.5rem;
+    margin-left: var(--spacing-3);
+    border: 3px solid var(--gray-300);
+    border-top-color: var(--primary);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+  }
+  
+  .error {
+    color: var(--danger);
+    background-color: rgba(239, 68, 68, 0.05);
+    border-radius: var(--border-radius);
+    padding: var(--spacing-4);
+  }
+  
+  @keyframes spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+  
+  .highlighterLayout {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: var(--spacing-4);
+    height: 100%;
+  }
+  
+  @media (min-width: 1024px) {
+    .highlighterLayout {
+      grid-template-columns: 3fr 2fr;
+    }
+  }
+  
+  .pdfSection {
+    border-radius: var(--border-radius-lg);
+    overflow: hidden;
+    height: 600px;
+  }
+  
+  @media (min-width: 1024px) {
+    .pdfSection {
+      height: 800px;
+    }
+  }
+  
+  .clausePanel {
+    background-color: white;
+    border-radius: var(--border-radius-lg);
+    padding: var(--spacing-4);
+    box-shadow: var(--shadow);
+    height: 100%;
+    max-height: 800px;
+    overflow-y: auto;
+  }
+  
+  .noneSelected {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    text-align: center;
+    color: var(--gray-500);
+    padding: var(--spacing-4);
+  }
+  
+  .clauseDetails {
+    display: flex;
+    flex-direction: column;
+  }
+  
+  .clauseTitle {
+    font-size: 1.25rem;
+    margin-bottom: var(--spacing-4);
+    display: flex;
+    align-items: center;
+  }
+  
+  .labelBadge {
+    margin-left: var(--spacing-2);
+    font-size: 0.75rem;
+    padding: 0.125rem 0.5rem;
+    border-radius: var(--border-radius-full);
+    font-weight: 500;
+    text-transform: capitalize;
+  }
+  
+  .good {
+    background-color: rgba(16, 185, 129, 0.2);
+    color: var(--good-color);
+  }
+  
+  .bad {
+    background-color: rgba(239, 68, 68, 0.2);
+    color: var(--bad-color);
+  }
+  
+  .harsh {
+    background-color: rgba(185, 28, 28, 0.2);
+    color: var(--harsh-color);
+  }
+  
+  .free {
+    background-color: rgba(59, 130, 246, 0.2);
+    color: var(--free-color);
+  }
+  
+  .tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--spacing-2);
+    margin-bottom: var(--spacing-4);
+  }
+  
+  .tag {
+    background-color: var(--gray-200);
+    color: var(--gray-700);
+    font-size: 0.75rem;
+    padding: 0.25rem 0.5rem;
+    border-radius: var(--border-radius-full);
+  }
+  
+  .clauseText {
+    background-color: var(--gray-50);
+    padding: var(--spacing-4);
+    border-radius: var(--border-radius);
+    margin-bottom: var(--spacing-4);
+    line-height: 1.6;
+  }
+  
+  .explanation {
+    background-color: var(--gray-50);
+    padding: var(--spacing-4);
+    border-radius: var(--border-radius);
+    margin-bottom: var(--spacing-4);
+  }
+  
+  .explanation h4 {
+    font-size: 0.875rem;
+    color: var(--gray-700);
+    margin-bottom: var(--spacing-2);
+  }
+  
+  .explanation p {
+    font-size: 0.875rem;
+    color: var(--gray-700);
+    line-height: 1.6;
+  }
+  
+  .labelButtons {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--spacing-2);
+    margin-top: var(--spacing-4);
+  }
+  
+  @media (min-width: 640px) {
+    .labelButtons {
+      grid-template-columns: repeat(4, 1fr);
+    }
+  }
+  
+  .labelButton {
+    padding: var(--spacing-2);
+    border: none;
+    border-radius: var(--border-radius);
+    font-weight: 500;
+    font-size: 0.875rem;
+    transition: all 0.2s;
+  }
+  
+  .goodButton {
+    background-color: rgba(16, 185, 129, 0.1);
+    color: var(--good-color);
+    border: 1px solid rgba(16, 185, 129, 0.2);
+  }
+  
+  .goodButton:hover {
+    background-color: rgba(16, 185, 129, 0.2);
+  }
+  
+  .goodButton.active {
+    background-color: var(--good-color);
+    color: white;
+  }
+  
+  .badButton {
+    background-color: rgba(239, 68, 68, 0.1);
+    color: var(--bad-color);
+    border: 1px solid rgba(239, 68, 68, 0.2);
+  }
+  
+  .badButton:hover {
+    background-color: rgba(239, 68, 68, 0.2);
+  }
+  
+  .badButton.active {
+    background-color: var(--bad-color);
+    color: white;
+  }
+  
+  .harshButton {
+    background-color: rgba(185, 28, 28, 0.1);
+    color: var(--harsh-color);
+    border: 1px solid rgba(185, 28, 28, 0.2);
+  }
+  
+  .harshButton:hover {
+    background-color: rgba(185, 28, 28, 0.2);
+  }
+  
+  .harshButton.active {
+    background-color: var(--harsh-color);
+    color: white;
+  }
+  
+  .freeButton {
+    background-color: rgba(59, 130, 246, 0.1);
+    color: var(--free-color);
+    border: 1px solid rgba(59, 130, 246, 0.2);
+  }
+  
+  .freeButton:hover {
+    background-color: rgba(59, 130, 246, 0.2);
+  }
+  
+  .freeButton.active {
+    background-color: var(--free-color);
+    color: white;
+  }

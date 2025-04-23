@@ -1,0 +1,194 @@
+.pdfContainer {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    height: 100%;
+    min-height: 500px;
+    overflow: hidden;
+  }
+  
+  .pdfControls {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--spacing-2) var(--spacing-4);
+    background-color: var(--gray-100);
+    border-radius: var(--border-radius) var(--border-radius) 0 0;
+    border-bottom: 1px solid var(--gray-200);
+  }
+  
+  .pageControls {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-2);
+  }
+  
+  .pageButton {
+    background: transparent;
+    border: none;
+    color: var(--gray-700);
+    font-size: 1.25rem;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    border-radius: var(--border-radius);
+    transition: background-color 0.2s;
+  }
+  
+  .pageButton:hover:not(:disabled) {
+    background-color: var(--gray-200);
+  }
+  
+  .pageButton:disabled {
+    color: var(--gray-400);
+    cursor: not-allowed;
+  }
+  
+  .zoomControls {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-2);
+  }
+  
+  .zoomButton {
+    background: transparent;
+    border: none;
+    color: var(--gray-700);
+    font-weight: bold;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    border-radius: var(--border-radius);
+    transition: background-color 0.2s;
+  }
+  
+  .zoomButton:hover {
+    background-color: var(--gray-200);
+  }
+  
+  .pdfWrapper {
+    flex: 1;
+    overflow: auto;
+    background-color: var(--gray-200);
+    border-radius: 0 0 var(--border-radius) var(--border-radius);
+    position: relative;
+  }
+  
+  .pdfDocument {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+    min-height: 100%;
+  }
+  
+  .pdfPage {
+    margin: var(--spacing-4) 0;
+    box-shadow: var(--shadow-md);
+    position: relative;
+  }
+  
+  .loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 400px;
+    color: var(--gray-500);
+  }
+  
+  .loading::after {
+    content: "";
+    width: 1.5rem;
+    height: 1.5rem;
+    margin-left: var(--spacing-3);
+    border: 3px solid var(--gray-300);
+    border-top-color: var(--primary);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+  }
+  
+  .error {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 400px;
+    color: var(--danger);
+    background-color: rgba(239, 68, 68, 0.05);
+    text-align: center;
+    padding: var(--spacing-4);
+  }
+  
+  @keyframes spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+  
+  /* Clause highlighting styles */
+  .clauseHighlight {
+    position: absolute;
+    background-color: rgba(79, 70, 229, 0.1);
+    border: 2px solid rgba(79, 70, 229, 0.3);
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+  
+  .clauseHighlight:hover {
+    background-color: rgba(79, 70, 229, 0.2);
+    z-index: 2;
+  }
+  
+  .clauseHighlight.good {
+    background-color: rgba(16, 185, 129, 0.1);
+    border-color: rgba(16, 185, 129, 0.3);
+  }
+  
+  .clauseHighlight.good:hover {
+    background-color: rgba(16, 185, 129, 0.2);
+  }
+  
+  .clauseHighlight.bad {
+    background-color: rgba(239, 68, 68, 0.1);
+    border-color: rgba(239, 68, 68, 0.3);
+  }
+  
+  .clauseHighlight.bad:hover {
+    background-color: rgba(239, 68, 68, 0.2);
+  }
+  
+  .clauseHighlight.harsh {
+    background-color: rgba(185, 28, 28, 0.1);
+    border-color: rgba(185, 28, 28, 0.3);
+  }
+  
+  .clauseHighlight.harsh:hover {
+    background-color: rgba(185, 28, 28, 0.2);
+  }
+  
+  .clauseHighlight.free {
+    background-color: rgba(59, 130, 246, 0.1);
+    border-color: rgba(59, 130, 246, 0.3);
+  }
+  
+  .clauseHighlight.free:hover {
+    background-color: rgba(59, 130, 246, 0.2);
+  }
+  
+  /* Responsive adjustments */
+  @media (max-width: 640px) {
+    .pdfControls {
+      flex-direction: column;
+      gap: var(--spacing-2);
+      padding: var(--spacing-2);
+    }
+    
+    .pdfContainer {
+      min-height: 400px;
+    }
+  }

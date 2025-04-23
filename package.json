@@ -1,0 +1,35 @@
+{
+  "name": "clause-reader",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "netlify dev",
+    "dev:next": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "deploy": "netlify deploy --prod"
+  },
+  "dependencies": {
+    "@netlify/functions": "^1.6.0",
+    "axios": "^1.8.4",
+    "formidable": "^2.1.1",
+    "next": "^15.3.1",
+    "openai": "^4.95.1",
+    "pdfjs-dist": "^5.1.91",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-dropzone": "^14.2.3",
+    "react-pdf": "^9.2.1",
+    "typescript": "^5.0.4"
+  },
+  "devDependencies": {
+    "@types/formidable": "^2.0.5",
+    "@types/node": "^18.15.11",
+    "@types/react": "^18.0.33",
+    "@types/react-dom": "^18.0.11",
+    "@types/react-pdf": "^7.0.0",
+    "eslint": "^8.38.0",
+    "eslint-config-next": "^13.3.0",
+    "netlify-cli": "^20.0.3"
+  }
+}

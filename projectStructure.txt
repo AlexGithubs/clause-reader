@@ -1,0 +1,59 @@
+# Clause Reader Project Structure
+
+```
+/components/
+  /auth/
+    LoginForm.tsx
+    SignupForm.tsx
+    AuthContext.tsx
+  /layout/
+    Navbar.tsx
+    Footer.tsx (missing)
+    AdminOnly.tsx
+  /pdf/
+    FileUploader.tsx
+    PDFViewer.tsx
+    ClauseHighlighter.tsx
+  /dashboard/
+    Summary.tsx
+    DeepSummary.tsx
+    ClauseList.tsx
+  /ui/
+    Button.tsx
+    Modal.tsx
+    ProgressBar.tsx
+    Tag.tsx
+/lib/
+  openai.ts
+  pdf.ts
+  analytics.ts
+  auth.ts
+  types.ts
+/netlify/functions/
+  upload.ts
+  extract.ts
+  summarize-simple.ts
+  summarize-deep.ts
+/pages/
+  _app.tsx
+  _document.tsx
+  index.tsx
+  login.tsx
+  signup.tsx
+  dashboard.tsx
+  admin.tsx
+  upload.tsx
+/styles/
+  global.css
+  Home.module.css
+  Dashboard.module.css
+  Auth.module.css
+/public/
+  favicon.ico
+  logo.svg
+netlify.toml
+.env.example
+package.json
+tsconfig.json
+README.md
+```
