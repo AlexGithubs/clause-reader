@@ -1,5 +1,8 @@
 import React, { useState, useEffect } from 'react';
+import ExportMenu from '@/components/export/ExportMenu';
+import ChatPanel from '@/components/chat/ChatPanel';
 import styles from '@/styles/Dashboard.module.css';
+import Link from 'next/link';
 
 interface SummaryProps {
   searchQuery: string;
@@ -18,7 +21,18 @@ interface SummaryData {
     id: string;
     text: string;
     tags: string[];
-    label: 'good' | 'bad' | 'harsh' | 'free';
+    label?: 'favorable' | 'unfavorable' | 'harsh' | 'standard provision';
+    page: number;
+    position: {
+      top: number;
+      left: number;
+      width: number;
+      height: number;
+    };
+    benchmark?: {
+      percentile: number;
+      comparison: string;
+    };
   }[];
 }
 
@@ -26,63 +40,105 @@ const Summary: React.FC<SummaryProps> = ({ searchQuery, filter }) => {
   const [summaryData, setSummaryData] = useState<SummaryData | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const [isChatOpen, setIsChatOpen] = useState(false);
 
-  // Fetch summary data (placeholder for API call)
   useEffect(() => {
     const fetchSummary = async () => {
+      setLoading(true);
+      setError("");
+      
+      // Check localStorage for documents
+      let documentIdsInStorage = Object.keys(localStorage).filter(
+        key => key.startsWith('document_')
+      );
+      
+      if (documentIdsInStorage.length === 0) {
+        setError("No documents found. Please upload a document first.");
+        setLoading(false);
+        return;
+      }
+      
+      // If we have a specific search query, use that ID
+      let documentId = searchQuery || '';
+      
+      // If no search query but we have documents in localStorage, use the first one
+      if (!documentId && documentIdsInStorage.length > 0) {
+        documentId = documentIdsInStorage[0].replace('document_', '');
+      }
+      
+      console.log(`Fetching summary for document ID: ${documentId}`);
+      
+      // Try to get from localStorage first
+      const storedDocument = localStorage.getItem(`document_${documentId}`);
+      if (storedDocument) {
+        try {
+          const parsedData = JSON.parse(storedDocument);
+          if (parsedData.summary && parsedData.highlightedClauses) {
+            console.log("Using document from localStorage");
+            setSummaryData(parsedData);
+            setLoading(false);
+            return;
+          }
+        } catch (e) {
+          console.error("Error parsing stored document:", e);
+          // Continue to API call if parsing fails
+        }
+      }
+      
       try {
-        setLoading(true);
+        const response = await fetch("/.netlify/functions/summarize-simple", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ fileId: documentId }),
+        });
         
-        // In a real application, this would be a call to the API
-        // const response = await fetch('/api/summarize-simple');
-        // const data = await response.json();
+        const data = await response.json();
         
-        // Mock data for development
-        const mockData: SummaryData = {
-          fileId: '123',
-          summary: 'This contract includes standard terms but contains several clauses that could be problematic. The indemnification clause is particularly harsh, requiring the customer to absorb significant liability. The payment terms are also quite strict with high penalties for late payment. However, the termination clause is fair and balanced.',
-          keyPoints: [
-            'Indemnification clause places excessive liability on the customer.',
-            'Payment terms require net 15 days with 10% monthly interest on late payments.',
-            'Termination clause allows either party to end with 30 days notice.',
-            'Contract lacks clear dispute resolution mechanism.',
-            'Confidentiality terms are industry standard.'
-          ],
-          highlightedClauses: [
-            {
-              id: '1',
-              text: 'The Customer agrees to indemnify and hold harmless the Provider from any claims, damages, or expenses arising from the Customer\'s use of the service.',
-              tags: ['liability', 'indemnification'],
-              label: 'harsh'
-            },
-            {
-              id: '3',
-              text: 'Payment terms are net 15 days from invoice date. Late payments will incur a 10% monthly interest charge.',
-              tags: ['payment', 'terms'],
-              label: 'bad'
-            }
-          ]
-        };
+        if (!response.ok) {
+          if (response.status === 404) {
+            setError(data.message || "Document not found. Please upload a document first.");
+          } else {
+            setError(`Error: ${data.error || response.statusText}`);
+          }
+          setLoading(false);
+          return;
+        }
         
-        setSummaryData(mockData);
-        setError(null);
+        // Save to localStorage for future use
+        localStorage.setItem(`document_${documentId}`, JSON.stringify(data));
+        
+        setSummaryData(data);
       } catch (err) {
-        console.error('Error fetching summary:', err);
-        setError('Failed to load summary data');
+        console.error("Error fetching summary:", err);
+        setError("Failed to fetch document summary. Please try again later.");
       } finally {
         setLoading(false);
       }
     };
 
     fetchSummary();
-  }, []);
+  }, [searchQuery]);
+
+  const toggleChat = () => {
+    setIsChatOpen(!isChatOpen);
+  };
 
   if (loading) {
     return <div className={styles.loading}>Loading summary...</div>;
   }
 
   if (error) {
-    return <div className={styles.error}>{error}</div>;
+    return (
+      <div className="bg-white p-6 rounded-lg shadow-md text-center">
+        <h2 className="text-2xl font-bold text-red-600 mb-4">No Contracts Found</h2>
+        <p className="text-gray-700 mb-6">{error}</p>
+        <Link href="/upload" className="inline-block px-6 py-3 bg-blue-600 text-white font-semibold rounded-md hover:bg-blue-700 transition-colors">
+          Upload Your First Contract
+        </Link>
+      </div>
+    );
   }
 
   if (!summaryData) {
@@ -90,9 +146,31 @@ const Summary: React.FC<SummaryProps> = ({ searchQuery, filter }) => {
   }
 
   return (
-    <div className={styles.summaryContainer}>
+    <main className="container">
+      <div className={`card ${styles.summaryContainer}`}>
       <div className={styles.summaryHeader}>
         <h2>Simple Summary</h2>
+          <div className={styles.summaryActions}>
+            <button
+              onClick={() => window.location.reload()}
+              style={{ marginRight: '10px', fontSize: '14px', padding: '5px 10px' }}
+              title="Force refresh the page"
+            >
+              Refresh
+            </button>
+            <button 
+              className={styles.chatButton}
+              onClick={toggleChat}
+              title="personal assistant"
+            >
+              <span className={styles.chatIcon}></span>
+              Personal Assistant
+            </button>
+            <ExportMenu 
+              fileId={summaryData.fileId}
+              clauses={summaryData.highlightedClauses as any}
+            />
+          </div>
       </div>
       
       <div className={styles.summaryContent}>
@@ -143,12 +221,32 @@ const Summary: React.FC<SummaryProps> = ({ searchQuery, filter }) => {
                     </span>
                   </div>
                   <p className={styles.clauseText}>{clause.text}</p>
+                    
+                    {/* Benchmark comparison display */}
+                    {clause.benchmark && (
+                      <div className={styles.benchmarkBar}>
+                        <div className={styles.benchmarkIndicator} style={{ width: `${clause.benchmark.percentile}%` }}>
+                          <span className={styles.benchmarkText}>{clause.benchmark.comparison}</span>
+                        </div>
+                      </div>
+                    )}
                 </div>
               ))}
           </div>
         )}
       </div>
+        
+        {/* Chat Panel */}
+        {isChatOpen && (
+          <ChatPanel 
+            fileId={summaryData.fileId}
+            clauses={summaryData.highlightedClauses}
+            isOpen={isChatOpen}
+            onClose={() => setIsChatOpen(false)}
+          />
+        )}
     </div>
+    </main>
   );
 };
 

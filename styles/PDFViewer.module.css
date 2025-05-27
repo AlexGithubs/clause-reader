@@ -1,194 +1,437 @@
 .pdfContainer {
     display: flex;
     flex-direction: column;
-    width: 100%;
     height: 100%;
-    min-height: 500px;
+    width: 100%;
+    border: 1px solid #eaeaea;
+    border-radius: 8px;
     overflow: hidden;
   }
   
   .pdfControls {
     display: flex;
     justify-content: space-between;
-    align-items: center;
-    padding: var(--spacing-2) var(--spacing-4);
-    background-color: var(--gray-100);
-    border-radius: var(--border-radius) var(--border-radius) 0 0;
-    border-bottom: 1px solid var(--gray-200);
+    padding: 10px;
+    border-bottom: 1px solid #eaeaea;
+    background-color: #f8f9fa;
   }
   
   .pageControls {
     display: flex;
     align-items: center;
-    gap: var(--spacing-2);
-  }
-  
-  .pageButton {
-    background: transparent;
-    border: none;
-    color: var(--gray-700);
-    font-size: 1.25rem;
-    width: 30px;
-    height: 30px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    border-radius: var(--border-radius);
-    transition: background-color 0.2s;
-  }
-  
-  .pageButton:hover:not(:disabled) {
-    background-color: var(--gray-200);
-  }
-  
-  .pageButton:disabled {
-    color: var(--gray-400);
-    cursor: not-allowed;
+    gap: 10px;
   }
   
   .zoomControls {
     display: flex;
     align-items: center;
-    gap: var(--spacing-2);
+    gap: 10px;
   }
   
-  .zoomButton {
-    background: transparent;
-    border: none;
-    color: var(--gray-700);
-    font-weight: bold;
-    width: 24px;
-    height: 24px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+  .pageButton, .zoomButton, .viewModeButton {
+    background-color: white;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    padding: 4px 8px;
     cursor: pointer;
-    border-radius: var(--border-radius);
+    font-size: 14px;
     transition: background-color 0.2s;
   }
   
-  .zoomButton:hover {
-    background-color: var(--gray-200);
+  .pageButton:hover, .zoomButton:hover, .viewModeButton:hover {
+    background-color: #f0f0f0;
+  }
+  
+  .pageButton:disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
+  }
+  
+  .viewControls {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+  }
+  
+  .viewModeButton {
+    background-color: #007bff;
+    color: white;
+    border: none;
+    padding: 6px 12px;
+  }
+  
+  .viewModeButton:hover {
+    background-color: #0069d9;
   }
   
   .pdfWrapper {
     flex: 1;
     overflow: auto;
-    background-color: var(--gray-200);
-    border-radius: 0 0 var(--border-radius) var(--border-radius);
     position: relative;
+    background-color: #e9e9e9;
   }
   
   .pdfDocument {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
     width: 100%;
-    min-height: 100%;
+    height: 100%;
+  }
+  
+  .pageContainer {
+    position: relative;
+    margin: 0 auto;
+    background-color: white;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   }
   
   .pdfPage {
-    margin: var(--spacing-4) 0;
-    box-shadow: var(--shadow-md);
-    position: relative;
+    width: 100%;
+    height: 100%;
   }
   
-  .loading {
+  .loading, .error {
     display: flex;
     align-items: center;
     justify-content: center;
-    height: 400px;
-    color: var(--gray-500);
-  }
-  
-  .loading::after {
-    content: "";
-    width: 1.5rem;
-    height: 1.5rem;
-    margin-left: var(--spacing-3);
-    border: 3px solid var(--gray-300);
-    border-top-color: var(--primary);
-    border-radius: 50%;
-    animation: spin 1s linear infinite;
+    height: 300px;
+    font-size: 18px;
+    color: #666;
   }
   
   .error {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    height: 400px;
-    color: var(--danger);
-    background-color: rgba(239, 68, 68, 0.05);
-    text-align: center;
-    padding: var(--spacing-4);
-  }
-  
-  @keyframes spin {
-    to {
-      transform: rotate(360deg);
-    }
+    color: #d9534f;
   }
   
   /* Clause highlighting styles */
   .clauseHighlight {
     position: absolute;
-    background-color: rgba(79, 70, 229, 0.1);
-    border: 2px solid rgba(79, 70, 229, 0.3);
     cursor: pointer;
-    transition: all 0.2s ease;
+    background-color: rgba(255, 255, 0, 0.5);
+    border: 3px solid rgba(255, 200, 0, 0.8);
+    border-radius: 3px;
+    z-index: 10;
+    transition: background-color 0.2s, box-shadow 0.2s;
   }
   
   .clauseHighlight:hover {
-    background-color: rgba(79, 70, 229, 0.2);
-    z-index: 2;
+    background-color: rgba(255, 255, 0, 0.7);
+    box-shadow: 0 0 0 4px rgba(255, 200, 0, 0.9);
   }
   
-  .clauseHighlight.good {
-    background-color: rgba(16, 185, 129, 0.1);
-    border-color: rgba(16, 185, 129, 0.3);
+  /* Label-specific styling */
+  .good {
+    background-color: var(--good-highlight);
+    border-color: var(--good-border);
   }
   
-  .clauseHighlight.good:hover {
-    background-color: rgba(16, 185, 129, 0.2);
+  .good:hover {
+    background-color: var(--good-highlight);
+    opacity: 0.8;
+    box-shadow: 0 0 0 2px var(--good-border);
   }
   
-  .clauseHighlight.bad {
-    background-color: rgba(239, 68, 68, 0.1);
-    border-color: rgba(239, 68, 68, 0.3);
+  .bad {
+    background-color: var(--bad-highlight);
+    border-color: var(--bad-border);
   }
   
-  .clauseHighlight.bad:hover {
-    background-color: rgba(239, 68, 68, 0.2);
+  .bad:hover {
+    background-color: var(--bad-highlight);
+    opacity: 0.8;
+    box-shadow: 0 0 0 2px var(--bad-border);
   }
   
-  .clauseHighlight.harsh {
-    background-color: rgba(185, 28, 28, 0.1);
-    border-color: rgba(185, 28, 28, 0.3);
+  .harsh {
+    background-color: var(--harsh-highlight);
+    border-color: var(--harsh-border);
   }
   
-  .clauseHighlight.harsh:hover {
-    background-color: rgba(185, 28, 28, 0.2);
+  .harsh:hover {
+    background-color: var(--harsh-highlight);
+    opacity: 0.8;
+    box-shadow: 0 0 0 2px var(--harsh-border);
   }
   
-  .clauseHighlight.free {
-    background-color: rgba(59, 130, 246, 0.1);
-    border-color: rgba(59, 130, 246, 0.3);
+  .free {
+    background-color: var(--free-highlight);
+    border-color: var(--free-border);
   }
   
-  .clauseHighlight.free:hover {
-    background-color: rgba(59, 130, 246, 0.2);
+  .free:hover {
+    background-color: var(--free-highlight);
+    opacity: 0.8;
+    box-shadow: 0 0 0 2px var(--free-border);
+  }
+  
+  /* Text view styles */
+  .textViewContainer {
+    padding: 20px;
+    background-color: #f0f2f5; /* Slightly off-white background */
+    height: 100%;
+    overflow-y: auto;
+  }
+  
+  .textContent {
+    font-family: Cambria, Cochin, Georgia, Times, 'Times New Roman', serif; /* Common document fonts */
+    font-size: 16px;
+    line-height: 1.7; /* Slightly increased line spacing */
+    color: #212529; /* Darker text for better contrast */
+    white-space: pre-wrap;
+    max-width: 800px;
+    margin: 2rem auto; /* Add top/bottom margin */
+    background-color: white; /* White paper effect */
+    padding: 4rem; /* Generous padding like a document margin */
+    border: 1px solid #dee2e6;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  }
+  
+  /* Fullscreen text view */
+  .fullscreen {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: white;
+    z-index: 9999;
+    overflow-y: auto;
+    padding: 40px;
+    max-width: 100%;
+    margin: 0;
+  }
+  
+  .fullscreenContainer {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: white;
+    z-index: 9999;
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    width: 100vw;
+    overflow: hidden;
+  }
+  
+  .fullscreenToolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 20px;
+    background-color: #f8f9fa;
+    border-bottom: 1px solid #eaeaea;
+    height: 60px;
+  }
+  
+  .fullscreenToolbarLeft, 
+  .fullscreenToolbarRight {
+    display: flex;
+    gap: 10px;
+  }
+  
+  .fullscreenButton {
+    background-color: #007bff;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: background-color 0.2s;
+  }
+  
+  .fullscreenButton:hover {
+    background-color: #0069d9;
+  }
+  
+  .fullscreenWrapper {
+    flex: 1;
+    position: relative;
+    overflow: hidden;
+    display: flex;
+  }
+  
+  .fullscreenTextView {
+    flex: 1;
+    padding: 0;
+    overflow-y: auto;
+    max-width: calc(100% - 350px);
+    transition: max-width 0.3s ease;
+  }
+  
+  .fullscreenTextView.withoutSidebar {
+    max-width: 100%;
+  }
+  
+  .fullscreenSidebar {
+    width: 350px;
+    background-color: #f8f9fa;
+    border-left: 1px solid #eaeaea;
+    padding: 20px;
+    overflow-y: auto;
+    height: 100%;
+  }
+  
+  .sidebarHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+  }
+  
+  .sidebarHeader h3 {
+    margin: 0;
+    font-size: 18px;
+  }
+  
+  .closeSidebar {
+    background: none;
+    border: none;
+    font-size: 24px;
+    cursor: pointer;
+    padding: 0;
+    color: #666;
+  }
+  
+  .clauseTags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+    margin: 15px 0;
+  }
+  
+  .tag {
+    background-color: #eaeaea;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+  }
+  
+  .clauseText {
+    background-color: white;
+    padding: 15px;
+    border-radius: 4px;
+    margin-top: 15px;
+    border: 1px solid #eaeaea;
+  }
+  
+  .labelBadge {
+    display: inline-block;
+    padding: 5px 10px;
+    border-radius: 4px;
+    font-weight: bold;
+    text-transform: uppercase;
+    font-size: 12px;
+    margin-top: 10px;
+  }
+  
+  .labelBadge.good {
+    background-color: var(--good-highlight);
+    color: #22863a;
+    border: 1px solid var(--good-border);
+  }
+  
+  .labelBadge.bad {
+    background-color: var(--bad-highlight);
+    color: #b08800;
+    border: 1px solid var(--bad-border);
+  }
+  
+  .labelBadge.harsh {
+    background-color: var(--harsh-highlight);
+    color: #cb2431;
+    border: 1px solid var(--harsh-border);
+  }
+  
+  .labelBadge.free {
+    background-color: var(--free-highlight);
+    color: #0366d6;
+    border: 1px solid var(--free-border);
   }
   
   /* Responsive adjustments */
-  @media (max-width: 640px) {
-    .pdfControls {
-      flex-direction: column;
-      gap: var(--spacing-2);
-      padding: var(--spacing-2);
+  @media (max-width: 768px) {
+    .textContent {
+      max-width: 100%;
+      padding: 10px;
     }
     
-    .pdfContainer {
-      min-height: 400px;
+    .fullscreen {
+      padding: 20px;
     }
+    
+    .fullscreenTextView {
+      max-width: 100%;
+    }
+    
+    .fullscreenSidebar {
+      position: fixed;
+      top: 60px;
+      right: 0;
+      bottom: 0;
+      width: 300px;
+      transform: translateX(100%);
+      transition: transform 0.3s ease;
+    }
+    
+    .fullscreenSidebar.open {
+      transform: translateX(0);
+    }
+  }
+  
+  /* Highlighted clause styling - more visible with !important to ensure styles are applied */
+  .highlightedClause {
+    /* Base style for highlighted spans - can be minimal */
+    padding: 0.1em 0.2em;
+    margin: 0 0.1em;
+    border-radius: 3px;
+    cursor: pointer;
+  }
+  
+  .highlightedClause.favorable {
+    background-color: rgba(0, 255, 0, 0.3); /* Light Green */
+  }
+  
+  .highlightedClause.unfavorable {
+    background-color: rgba(255, 99, 71, 0.3); /* Lighter Tomato Red */
+  }
+  
+  .highlightedClause.harsh {
+    background-color: rgba(255, 190, 80, 0.3); /* Lighter Orange */
+  }
+  
+  .highlightedClause.standard-provision {
+    background-color: rgba(135, 206, 250, 0.5); /* Light Sky Blue, 50% opacity */
+  }
+  
+  .unmarkedClause {
+    /* Style for clauses without a label */
+    background-color: rgba(200, 200, 200, 0.4); /* Light Gray */
+  }
+  
+  .highlightedClause.selected {
+    /* Add a distinct style for selected clauses, e.g., outline */
+    outline: 2px solid #007bff; 
+    outline-offset: 1px;
+  }
+  
+  .highlightedClause:hover {
+    filter: brightness(1.1);
+  }
+  
+  /* Text view highlighting styles */
+  .highlightedParagraph {
+    margin: 10px 0;
+    position: relative;
+  }
+  
+  .highlighterEffect {
+    /* Base styles are applied inline for direct control */
+    transition: all 0.2s ease;
+  }
+  
+  .highlighterEffect:hover {
+    filter: brightness(1.1);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
   }

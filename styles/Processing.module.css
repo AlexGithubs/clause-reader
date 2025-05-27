@@ -1,0 +1,39 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  min-height: 80vh; /* Make it take up most of the viewport height */
+  text-align: center;
+  padding: 2rem;
+  background-color: #f8f9fa; /* Light background */
+}
+
+.title {
+  font-size: 2rem; /* Larger title */
+  color: #343a40; /* Darker text */
+  margin-bottom: 1.5rem;
+}
+
+.subtext {
+  font-size: 1rem;
+  color: #6c757d; /* Muted text color */
+  margin-top: 1.5rem;
+  max-width: 400px;
+}
+
+/* Simple CSS Loader Animation */
+.loader {
+  border: 6px solid #e9ecef; /* Light grey border */
+  border-top: 6px solid #007bff; /* Blue top border for spinning effect */
+  border-radius: 50%;
+  width: 60px;
+  height: 60px;
+  animation: spin 1s linear infinite;
+  margin: 2rem auto; /* Center the loader */
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+} 

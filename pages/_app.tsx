@@ -1,28 +1,14 @@
+import React from 'react';
 import { AppProps } from 'next/app';
-import { useEffect } from 'react';
-import { AuthProvider } from '@/components/auth/AuthContext';
+import '../styles/globals.css';
+import { SupabaseAuthProvider } from '../components/auth/SupabaseAuthContext';
+import { AuthProvider } from '../components/auth/AuthContext';
 import Navbar from '@/components/layout/Navbar';
 import Footer from '@/components/layout/Footer';
-import '@/styles/global.css';
 
 function MyApp({ Component, pageProps, router }: AppProps) {
-  // Initialize Netlify Identity
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      // Load Netlify Identity script
-      const script = document.createElement('script');
-      script.src = 'https://identity.netlify.com/v1/netlify-identity-widget.js';
-      script.async = true;
-      document.body.appendChild(script);
-      
-      return () => {
-        document.body.removeChild(script);
-      };
-    }
-  }, []);
-
   // Track page views for GA4
-  useEffect(() => {
+  React.useEffect(() => {
     const handleRouteChange = (url: string) => {
       if (typeof window !== 'undefined' && window.gtag) {
         window.gtag('config', process.env.NEXT_PUBLIC_GA4_ID || '', {
@@ -42,13 +28,15 @@ function MyApp({ Component, pageProps, router }: AppProps) {
   const isPublicPage = ['/login', '/signup', '/'].includes(router.pathname);
 
   return (
-    <AuthProvider>
-      <Navbar />
-      <main className="container">
-        <Component {...pageProps} />
-      </main>
-      <Footer />
-    </AuthProvider>
+    <SupabaseAuthProvider>
+      <AuthProvider>
+        <Navbar />
+        <main className="container">
+          <Component {...pageProps} />
+        </main>
+        <Footer />
+      </AuthProvider>
+    </SupabaseAuthProvider>
   );
 }
 

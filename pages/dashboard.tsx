@@ -43,9 +43,11 @@ const Dashboard: NextPage = () => {
 
       <div className={styles.header}>
         <h1 className={styles.title}>Your Contracts</h1>
+        <div style={{display: 'flex', gap: '10px'}}>
         <Link href="/upload" className={styles.uploadButton}>
           Upload New Contract
         </Link>
+        </div>
       </div>
 
       <div className={styles.viewToggle}>
@@ -115,7 +117,10 @@ const Dashboard: NextPage = () => {
         <DeepSummary searchQuery={searchQuery} filter={filter} />
       )}
 
+      {/* Only show ClauseList if at least one document exists */}
+      {localStorage.getItem('latestFileId') ? (
       <ClauseList searchQuery={searchQuery} filter={filter} />
+      ) : null}
     </div>
   );
 };

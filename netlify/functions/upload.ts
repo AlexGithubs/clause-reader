@@ -1,9 +1,10 @@
 import { Handler } from '@netlify/functions';
 import formidable from 'formidable';
-import { createWriteStream, existsSync, mkdirSync } from 'fs';
+import { createWriteStream, existsSync, mkdirSync, readFileSync, unlinkSync } from 'fs';
 import { join } from 'path';
 import { tmpdir } from 'os';
 import { randomUUID } from 'crypto';
+import { saveDocument } from '@/lib/db';
 
 // Create uploads directory if it doesn't exist
 const uploadDir = join(tmpdir(), 'clause-reader-uploads');
@@ -18,7 +19,6 @@ const parseMultipartForm = (event: any): Promise<{ fields: formidable.Fields; fi
       multiples: false,
       maxFileSize: 10 * 1024 * 1024, // 10 MB
       uploadDir,
-      filename: (name, ext) => `${randomUUID()}${ext}`,
       filter: (part) => {
         return part.mimetype === 'application/pdf';
       },
@@ -27,6 +27,13 @@ const parseMultipartForm = (event: any): Promise<{ fields: formidable.Fields; fi
     // Parse the request
     form.parse(event, (err, fields, files) => {
       if (err) {
+        if (files.file && !Array.isArray(files.file) && files.file.filepath && existsSync(files.file.filepath)) {
+          try {
+            unlinkSync(files.file.filepath);
+          } catch (cleanupErr) {
+            console.error("Error cleaning up temp file on parse error:", cleanupErr);
+          }
+        }
         reject(err);
         return;
       }
@@ -44,6 +51,7 @@ export const handler: Handler = async (event, context) => {
     };
   }
 
+  let tempFilePath: string | undefined;
   try {
     // Check if user is authenticated
     const { user } = context.clientContext || {};
@@ -56,19 +64,36 @@ export const handler: Handler = async (event, context) => {
 
     // Parse form data with uploaded file
     const { files } = await parseMultipartForm(event);
-    const uploadedFile = files.file;
 
-    if (!uploadedFile) {
+    if (!files.file || Array.isArray(files.file) || !files.file.filepath) {
       return {
         statusCode: 400,
-        body: JSON.stringify({ error: 'No file uploaded' }),
+        body: JSON.stringify({ error: 'No valid file uploaded or file path missing' }),
       };
     }
+    const uploadedFile = files.file;
+    tempFilePath = uploadedFile.filepath;
 
-    // In a real-world scenario, we would store the file in a proper storage service
-    // like S3, but for this example, we'll just use a random UUID as the file ID
-    // and keep the file in the temporary directory
+    // Generate a unique ID for the document
     const fileId = randomUUID();
+    
+    // Read the file content from the temporary path
+    const fileBuffer = readFileSync(tempFilePath);
+
+    // Save document metadata AND content to database
+    await saveDocument({
+      id: fileId,
+      userId: user.sub, // Netlify Identity user ID
+      filename: uploadedFile.originalFilename || 'unnamed.pdf',
+      fileSize: uploadedFile.size,
+      fileType: uploadedFile.mimetype || 'application/pdf',
+      fileContent: fileBuffer,
+      uploadDate: new Date().toISOString()
+    });
+
+    // Clean up the temporary file after successful DB save
+    unlinkSync(tempFilePath);
+    tempFilePath = undefined;
 
     return {
       statusCode: 200,
@@ -79,9 +104,17 @@ export const handler: Handler = async (event, context) => {
     };
   } catch (error) {
     console.error('Upload error:', error);
+    if (tempFilePath && existsSync(tempFilePath)) {
+      try {
+        unlinkSync(tempFilePath);
+      } catch (cleanupErr) {
+        console.error("Error cleaning up temp file after upload error:", cleanupErr);
+      }
+    }
+    const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
     return {
       statusCode: 500,
-      body: JSON.stringify({ error: 'Failed to upload file' }),
+      body: JSON.stringify({ error: `Failed to upload file: ${errorMessage}` }),
     };
   }
 };

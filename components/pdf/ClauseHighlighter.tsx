@@ -13,7 +13,7 @@ interface Clause {
     height: number;
   };
   tags: string[];
-  label?: 'good' | 'bad' | 'harsh' | 'free';
+  label?: 'favorable' | 'unfavorable' | 'harsh' | 'standard provision';
   explanation?: string;
 }
 
@@ -27,34 +27,72 @@ const ClauseHighlighter: React.FC<ClauseHighlighterProps> = ({ pdfUrl, fileId })
   const [selectedClause, setSelectedClause] = useState<Clause | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const [fullText, setFullText] = useState<string>('');
+  const [pdfData, setPdfData] = useState<string | null>(null);
 
-  // Fetch clauses for the PDF
+  // Fetch clauses and PDF data for the PDF from localStorage
   useEffect(() => {
-    const fetchClauses = async () => {
-      try {
-        setLoading(true);
+    if (!fileId) {
+      setError('No file ID provided.');
+      setLoading(false);
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+    console.log(`ClauseHighlighter: Attempting to load data for fileId: ${fileId} from localStorage.`);
+
+    try {
+      const documentKey = `document_${fileId}`;
+      const storedData = localStorage.getItem(documentKey);
         
-        // Fetch clauses from API
-        const response = await fetch(`/api/extract?fileId=${fileId}`);
+      if (storedData) {
+        console.log(`ClauseHighlighter: Found data in localStorage for key: ${documentKey}`);
+        const data = JSON.parse(storedData);
         
-        if (!response.ok) {
-          throw new Error('Failed to load clauses');
+        if (data && data.highlightedClauses) {
+             // Handle both possible property names (though highlightedClauses should be correct now)
+            const clausesData = data.highlightedClauses || data.clauses || [];
+            setClauses(clausesData);
+             console.log(`ClauseHighlighter: Loaded ${clausesData.length} clauses from localStorage.`);
+        
+        // Set the full text if available
+        if (data.fullText) {
+          setFullText(data.fullText);
+            } else {
+               console.warn("ClauseHighlighter: fullText not found in localStorage data.");
+               setFullText(''); // Ensure it's reset if not found
+            }
+
+            // Set the PDF base64 data if available
+            if (data.fileContentBase64) {
+              setPdfData(data.fileContentBase64);
+              console.log("ClauseHighlighter: Loaded PDF base64 data from localStorage.");
+            } else {
+               console.error("ClauseHighlighter: fileContentBase64 not found in localStorage data.");
+               setError('Stored document data is missing PDF content.');
+               setPdfData(null);
+            }
+            setError(null);
+        } else {
+             console.error("ClauseHighlighter: Parsed localStorage data is missing highlightedClauses.", data);
+             setError('Stored clause data is invalid or missing clauses.');
+             setClauses([]);
         }
-        
-        const data = await response.json();
-        setClauses(data.clauses);
+      } else {
+        console.error(`ClauseHighlighter: No data found in localStorage for key: ${documentKey}`);
+        setError(`Analysis data for document ${fileId} not found. Please try re-uploading.`);
+        setClauses([]);
+        }
       } catch (err) {
-        console.error('Error loading clauses:', err);
-        setError('Failed to load clause data');
+      console.error('ClauseHighlighter: Error loading or parsing data from localStorage:', err);
+      setError('Failed to load clause data from storage.');
+      setClauses([]);
       } finally {
         setLoading(false);
       }
-    };
 
-    if (fileId) {
-      fetchClauses();
-    }
-  }, [fileId]);
+  }, [fileId]); // Rerun when fileId changes
 
   // Handle clause selection
   const handleClauseClick = (clauseId: string) => {
@@ -64,41 +102,27 @@ const ClauseHighlighter: React.FC<ClauseHighlighterProps> = ({ pdfUrl, fileId })
     }
   };
 
-  // Update label for a clause
-  const updateClauseLabel = async (clauseId: string, label: 'good' | 'bad' | 'harsh' | 'free') => {
-    // Update local state first for responsive UI
-    setClauses(prevClauses => 
-      prevClauses.map(clause => 
-        clause.id === clauseId ? { ...clause, label } : clause
-      )
-    );
-    
-    if (selectedClause && selectedClause.id === clauseId) {
-      setSelectedClause(prev => prev ? { ...prev, label } : null);
-    }
-    
-    // Update on server
-    try {
-      const response = await fetch('/api/update-clause', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          fileId,
-          clauseId,
-          label,
-        }),
-      });
-      
-      if (!response.ok) {
-        throw new Error('Failed to update clause');
-      }
-    } catch (err) {
-      console.error('Error updating clause:', err);
-      // Could revert the local state change here if needed
-    }
+  // Transform clauses to match PDFViewer's expected format
+  const transformClausesForPDFViewer = (originalClauses: Clause[]) => {
+    return originalClauses.map(clause => ({
+      id: clause.id,
+      text: clause.text,
+      position: {
+        pageNumber: clause.page,
+        boundingBox: clause.position ? {
+          x1: clause.position.left,
+          y1: clause.position.top,
+          x2: clause.position.left + clause.position.width,
+          y2: clause.position.top + clause.position.height
+        } : undefined
+      },
+      tags: clause.tags,
+      label: clause.label
+    }));
   };
+
+  const transformedClauses = transformClausesForPDFViewer(clauses);
+  console.log("Transformed clauses for PDFViewer:", transformedClauses);
 
   return (
     <div className={styles.container}>
@@ -110,9 +134,11 @@ const ClauseHighlighter: React.FC<ClauseHighlighterProps> = ({ pdfUrl, fileId })
         <div className={styles.highlighterLayout}>
           <div className={styles.pdfSection}>
             <PDFViewer 
-              url={pdfUrl} 
-              clauses={clauses}
+              pdfData={pdfData}
+              fullText={fullText}
+              clauses={transformedClauses}
               onClauseClick={handleClauseClick}
+              selectedClauseId={selectedClause?.id}
             />
           </div>
           
@@ -120,9 +146,9 @@ const ClauseHighlighter: React.FC<ClauseHighlighterProps> = ({ pdfUrl, fileId })
             {selectedClause ? (
               <div className={styles.clauseDetails}>
                 <h3 className={styles.clauseTitle}>
-                  Clause {selectedClause.id}
+                  Selected Clause
                   {selectedClause.label && (
-                    <span className={`${styles.labelBadge} ${styles[selectedClause.label]}`}>
+                    <span className={`${styles.labelBadge} ${styles[selectedClause.label.replace(' ', '-')]}`}>
                       {selectedClause.label}
                     </span>
                   )}
@@ -138,43 +164,27 @@ const ClauseHighlighter: React.FC<ClauseHighlighterProps> = ({ pdfUrl, fileId })
                   <p>{selectedClause.text}</p>
                 </div>
                 
-                {selectedClause.explanation && (
+                {selectedClause.explanation ? (
                   <div className={styles.explanation}>
                     <h4>AI Analysis:</h4>
                     <p>{selectedClause.explanation}</p>
                   </div>
+                ) : (
+                  <div className={styles.explanation}>
+                    <h4>AI Analysis:</h4>
+                    <p>
+                      {selectedClause.label === 'favorable' && "This clause appears generally favorable or standard."}
+                      {selectedClause.label === 'unfavorable' && "This clause may have unfavorable elements that require attention."}
+                      {selectedClause.label === 'harsh' && "This clause contains harsh terms that could be detrimental."}
+                      {selectedClause.label === 'standard provision' && "This appears to be a standard informational or neutral clause."}
+                      {!selectedClause.label && "No analysis available for this clause."}
+                    </p>
+                  </div>
                 )}
-                
-                <div className={styles.labelButtons}>
-                  <button 
-                    className={`${styles.labelButton} ${styles.goodButton} ${selectedClause.label === 'good' ? styles.active : ''}`}
-                    onClick={() => updateClauseLabel(selectedClause.id, 'good')}
-                  >
-                    Good
-                  </button>
-                  <button 
-                    className={`${styles.labelButton} ${styles.badButton} ${selectedClause.label === 'bad' ? styles.active : ''}`}
-                    onClick={() => updateClauseLabel(selectedClause.id, 'bad')}
-                  >
-                    Bad
-                  </button>
-                  <button 
-                    className={`${styles.labelButton} ${styles.harshButton} ${selectedClause.label === 'harsh' ? styles.active : ''}`}
-                    onClick={() => updateClauseLabel(selectedClause.id, 'harsh')}
-                  >
-                    Harsh
-                  </button>
-                  <button 
-                    className={`${styles.labelButton} ${styles.freeButton} ${selectedClause.label === 'free' ? styles.active : ''}`}
-                    onClick={() => updateClauseLabel(selectedClause.id, 'free')}
-                  >
-                    Free
-                  </button>
-                </div>
               </div>
             ) : (
               <div className={styles.noneSelected}>
-                <p>Click on a highlighted clause in the document to view details and add labels.</p>
+                <p>Click on a highlighted clause in the document to view AI analysis of that clause.</p>
               </div>
             )}
           </div>

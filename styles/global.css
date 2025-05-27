@@ -107,6 +107,9 @@
     max-width: 1200px;
     margin: 0 auto;
     padding: 0 var(--spacing-4);
+    /* Prevent scroll issues */
+    min-height: auto;
+    overflow: visible;
   }
   
   @media (min-width: 640px) {
@@ -117,8 +120,17 @@
   
   /* Main content area */
   main {
-    min-height: calc(100vh - 64px - 200px); /* Viewport height minus header and footer */
-    padding: var(--spacing-8) 0;
+    padding: 0;
+    /* Prevent scroll issues */
+    overflow: visible;
+    min-height: auto;
+  }
+  
+  main.container {
+    width: 100%;
+    /* No height constraints to allow natural content flow */
+    overflow: visible;
+    min-height: auto;
   }
   
   /* Heading styles */
@@ -251,10 +263,10 @@
   /* Card styles */
   .card {
     background-color: white;
-    border-radius: var(--border-radius-lg);
-    box-shadow: var(--shadow);
+    border-radius: var(--border-radius);
     padding: var(--spacing-6);
-    margin-bottom: var(--spacing-6);
+    box-shadow: var(--shadow);
+    margin-bottom: var(--spacing-8);
   }
   
   /* Alert styles */

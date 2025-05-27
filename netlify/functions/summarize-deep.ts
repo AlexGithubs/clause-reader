@@ -14,21 +14,21 @@ function calculateRisk(clauses: any[]) {
 
     clauses.forEach(clause => {
         switch (clause.label) {
-            case 'good':
+            case 'favorable':
                 breakdown.good++;
                 riskScore += 5;
                 break;
-            case 'bad':
+            case 'unfavorable':
                 breakdown.bad++;
                 riskScore -= 10;
-                clause.tags.forEach(tag => riskAreas.add(tag));
+                clause.tags.forEach((tag: string) => riskAreas.add(tag));
                 break;
             case 'harsh':
                 breakdown.harsh++;
                 riskScore -= 15;
-                clause.tags.forEach(tag => riskAreas.add(tag));
+                clause.tags.forEach((tag: string) => riskAreas.add(tag));
                 break;
-            case 'free':
+            case 'standard provision':
                 breakdown.free++;
                 riskScore += 10; // Assume neutral/slightly positive
                 break;
@@ -88,8 +88,18 @@ const handler: Handler = async (event: HandlerEvent, context: HandlerContext) =>
         const analysisText = analysisParts[0]?.replace("Comprehensive Analysis:", "").trim();
         const recommendationsText = analysisParts[1]?.trim();
 
-        // Calculate risk assessment based on clause labels (provided in the request)
+        // Calculate risk assessment based on clause labels
         const riskAssessment = calculateRisk(clauses);
+
+        // Extract benchmark data for reporting
+        const benchmarkData = clauses
+            .filter((clause: any) => clause.benchmark && clause.benchmark.percentile > 70)
+            .map((clause: any) => ({
+                id: clause.id,
+                text: clause.text.substring(0, 100) + (clause.text.length > 100 ? '...' : ''),
+                tags: clause.tags,
+                benchmark: clause.benchmark
+            }));
 
         return {
             statusCode: 200,
@@ -98,7 +108,8 @@ const handler: Handler = async (event: HandlerEvent, context: HandlerContext) =>
                 analysis: analysisText || "Analysis not generated.",
                 recommendations: recommendationsText || "Recommendations not generated.",
                 riskAssessment,
-                detailedClauses: clauses // Return the input clauses which include labels/tags
+                benchmarkData,
+                detailedClauses: clauses // Return the input clauses with benchmark data
             }),
         };
 

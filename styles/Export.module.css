@@ -1,0 +1,188 @@
+.exportMenuContainer {
+    position: relative;
+  }
+  
+  .exportButton {
+    background-color: var(--primary);
+    color: white;
+    border: none;
+    border-radius: var(--border-radius);
+    padding: var(--spacing-2) var(--spacing-4);
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color 0.2s;
+  }
+  
+  .exportButton:hover {
+    background-color: var(--primary-dark);
+  }
+  
+  .exportButton:disabled {
+    background-color: var(--gray-400);
+    cursor: not-allowed;
+  }
+  
+  .menuDropdown {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    width: 220px;
+    background-color: white;
+    border-radius: var(--border-radius-md);
+    box-shadow: var(--shadow-lg);
+    margin-top: var(--spacing-2);
+    z-index: 10;
+    overflow: hidden;
+  }
+  
+  .menuItem {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    padding: var(--spacing-3) var(--spacing-4);
+    border: none;
+    background-color: transparent;
+    text-align: left;
+    font-size: 0.875rem;
+    color: var(--gray-800);
+    cursor: pointer;
+    transition: background-color 0.2s;
+  }
+  
+  .menuItem:hover {
+    background-color: var(--gray-100);
+  }
+  
+  .menuIcon {
+    margin-right: var(--spacing-3);
+    font-size: 1rem;
+  }
+  
+  .menuDivider {
+    height: 1px;
+    background-color: var(--gray-200);
+    margin: var(--spacing-2) 0;
+  }
+  
+  /* Share link modal styles */
+  .modalOverlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 100;
+  }
+  
+  .shareModal {
+    background-color: white;
+    border-radius: var(--border-radius-lg);
+    width: 90%;
+    max-width: 500px;
+    box-shadow: var(--shadow-xl);
+    overflow: hidden;
+  }
+  
+  .modalHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--spacing-4) var(--spacing-6);
+    border-bottom: 1px solid var(--gray-200);
+  }
+  
+  .modalHeader h3 {
+    margin: 0;
+    font-size: 1.25rem;
+    color: var(--gray-800);
+  }
+  
+  .closeButton {
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    color: var(--gray-500);
+    cursor: pointer;
+    padding: 0 var(--spacing-2);
+  }
+  
+  .closeButton:hover {
+    color: var(--gray-700);
+  }
+  
+  .modalBody {
+    padding: var(--spacing-6);
+  }
+  
+  .modalBody p {
+    margin-bottom: var(--spacing-4);
+    color: var(--gray-700);
+  }
+  
+  .linkContainer {
+    display: flex;
+    margin-bottom: var(--spacing-4);
+  }
+  
+  .linkInput {
+    flex: 1;
+    padding: var(--spacing-3) var(--spacing-4);
+    border: 1px solid var(--gray-300);
+    border-radius: var(--border-radius-md) 0 0 var(--border-radius-md);
+    font-size: 0.875rem;
+    background-color: var(--gray-50);
+  }
+  
+  .copyButton {
+    background-color: var(--primary);
+    color: white;
+    border: none;
+    border-radius: 0 var(--border-radius-md) var(--border-radius-md) 0;
+    padding: 0 var(--spacing-4);
+    font-size: 0.875rem;
+    cursor: pointer;
+    transition: background-color 0.2s;
+  }
+  
+  .copyButton:hover {
+    background-color: var(--primary-dark);
+  }
+  
+  .modalNote {
+    background-color: var(--gray-100);
+    border-radius: var(--border-radius);
+    padding: var(--spacing-3) var(--spacing-4);
+  }
+  
+  .noteText {
+    margin: 0;
+    font-size: 0.875rem;
+    color: var(--gray-700);
+  }
+  
+  .modalFooter {
+    display: flex;
+    justify-content: flex-end;
+    padding: var(--spacing-4) var(--spacing-6);
+    border-top: 1px solid var(--gray-200);
+  }
+  
+  .cancelButton {
+    background-color: var(--gray-200);
+    color: var(--gray-700);
+    border: none;
+    border-radius: var(--border-radius);
+    padding: var(--spacing-2) var(--spacing-4);
+    font-size: 0.875rem;
+    cursor: pointer;
+    transition: background-color 0.2s;
+  }
+  
+  .cancelButton:hover {
+    background-color: var(--gray-300);
+  }

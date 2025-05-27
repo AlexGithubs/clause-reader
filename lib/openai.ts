@@ -1,12 +1,9 @@
-import { Configuration, OpenAIApi } from 'openai';
-
-// Set up OpenAI configuration
-const configuration = new Configuration({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+import OpenAI from 'openai';
 
 // Create OpenAI client
-const openai = new OpenAIApi(configuration);
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+});
 
 /**
  * Extract clauses from contract text
@@ -16,51 +13,57 @@ const openai = new OpenAIApi(configuration);
 export async function extractClauses(contractText: string) {
   try {
     // Trim contract text to fit within token limits
-    const trimmedText = contractText.substring(0, 3000);
+    const trimmedText = contractText.substring(0, 15000); // Increased limit for GPT-4o
     
-    // Create prompt for OpenAI
-    const prompt = `
-    Analyze the following contract text and extract individual clauses. For each clause:
-    1. Extract the text
-    2. Assign relevant tags (e.g., liability, termination, payment, confidentiality)
-    3. Provide a brief explanation of what the clause means and its potential implications
-    4. Rate it as 'good', 'bad', 'harsh', or 'free' for the client
-
-    Format the response as a JSON array of clause objects with the following properties:
-    - id: a unique identifier for the clause
+    // Create prompt for OpenAI using Chat Completions
+    const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
+      {
+        role: 'system',
+        content: `Analyze the following contract text and extract individual clauses. Format the response as a valid JSON array of clause objects.
+Each object must have these properties:
+- id: a unique identifier (e.g., clause-1, clause-2)
     - text: the full text of the clause
-    - tags: an array of relevant tags
-    - explanation: a brief explanation of the clause and its implications
-    - rating: one of: 'good', 'bad', 'harsh', 'free'
+- tags: an array of relevant tags (e.g., liability, termination, payment, confidentiality)
+- explanation: a brief explanation of the clause and its potential implications
+- label: one of: 'favorable', 'unfavorable', 'harsh', 'standard provision' (representing the client's perspective)`
+      },
+      {
+        role: 'user',
+        content: `Contract text:
+${trimmedText}`
+      }
+    ];
 
-    Contract text:
-    ${trimmedText}
-    `;
-
-    // Call OpenAI API
-    const response = await openai.createCompletion({
-      model: "text-davinci-003", // or the latest recommended model
-      prompt,
-      max_tokens: 2000,
+    // Call OpenAI Chat Completions API
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o", // Use a model that supports JSON mode
+      messages: messages,
+      response_format: { type: "json_object" }, // Request JSON output
+      max_tokens: 4000, // Adjust as needed
       temperature: 0.2,
     });
 
     // Parse the response
-    const output = response.data.choices[0].text?.trim() || '';
+    const output = response.choices[0].message?.content?.trim() || '';
     
     try {
       // Try to parse as JSON
-      const clauses = JSON.parse(output);
+      const parsedOutput = JSON.parse(output);
+      // Assuming the response contains the array directly or under a key like 'clauses'
+      const clauses = Array.isArray(parsedOutput) ? parsedOutput : parsedOutput.clauses;
+      if (!Array.isArray(clauses)) {
+          throw new Error("Parsed response is not an array of clauses.");
+      }
       return clauses;
     } catch (parseError) {
       // If parsing fails, return a simpler structure with the raw output
-      console.error('Failed to parse OpenAI response as JSON:', parseError);
+      console.error('Failed to parse OpenAI response as JSON:', parseError, "Raw output:", output);
       return [{
-        id: '1',
-        text: 'Failed to parse clauses properly',
+        id: 'parse-error',
+        text: 'Failed to parse clauses properly.',
         tags: ['error'],
-        explanation: 'The AI could not properly parse the contract text. Please try again or upload a clearer document.',
-        rating: 'unknown',
+        explanation: `The AI response could not be parsed as JSON. Raw output: ${output.substring(0, 200)}...`,
+        label: 'unknown', // Use 'unknown' or keep rating property consistent
       }];
     }
   } catch (error) {
@@ -77,36 +80,50 @@ export async function extractClauses(contractText: string) {
 export async function generateSimpleSummary(clauses: any[]) {
   try {
     // Prepare the input for OpenAI
-    const clauseTexts = clauses.map(clause => {
-      return `Clause: ${clause.text}
-      Tags: ${clause.tags.join(', ')}
-      Label: ${clause.label || 'unlabeled'}`;
+    const clauseContext = clauses.map(clause => {
+      return `Clause (ID: ${clause.id}, Tags: ${clause.tags.join(', ')}, Label: ${clause.label || 'unlabeled'}):\n${clause.text}`;
     }).join('\n\n');
 
-    const prompt = `
-    Generate a simple summary of the following contract clauses. 
-    Focus on key highlights, potential risks, and main terms.
-    Keep the summary concise and easy to understand for non-legal professionals.
-    
-    Contract clauses:
-    ${clauseTexts}
-    
-    Summary:
-    `;
+    const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
+        {
+            role: 'system',
+            content: `Generate a simple summary of the provided contract clauses. Focus on key highlights, potential risks, and main terms. Keep the summary concise (around 100-150 words) and easy for non-legal professionals to understand. Also, extract 3-5 bullet points covering the most critical aspects.`
+        },
+        {
+            role: 'user',
+            content: `Contract clauses:\n${clauseContext}\n\nGenerate Summary and Key Points:`
+        }
+    ];
 
-    // Call OpenAI API
-    const response = await openai.createCompletion({
-      model: "text-davinci-003", // or the latest recommended model
-      prompt,
+    // Call OpenAI Chat Completions API
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o",
+      messages: messages,
       max_tokens: 500,
       temperature: 0.4,
     });
 
     // Extract and return the summary
-    const summary = response.data.choices[0].text?.trim() || 'Unable to generate summary.';
+    const content = response.choices[0].message?.content?.trim() || 'Unable to generate summary.';
     
-    // Extract key points
-    const keyPoints = extractKeyPoints(summary);
+    // Attempt to parse structured summary and key points
+    let summary = content;
+    let keyPoints: string[] = [];
+
+    // Simple parsing logic (adjust based on expected GPT output format)
+    const summaryMatch = content.match(/Summary:(.*?)(Key Points:|###|$)/si);
+    const keyPointsMatch = content.match(/(Key Points:|\* |- )(.+)/si);
+
+    if (summaryMatch && summaryMatch[1]) {
+      summary = summaryMatch[1].trim();
+    }
+    if (keyPointsMatch && keyPointsMatch[2]) {
+      keyPoints = keyPointsMatch[2].split(/\n(?:\* |- )/).map(pt => pt.trim()).filter(pt => pt.length > 0);
+    }
+    // Fallback if parsing fails
+    if (keyPoints.length === 0) {
+        keyPoints = extractKeyPoints(summary); // Use the helper as fallback
+    }
     
     return {
       summary,
@@ -126,65 +143,48 @@ export async function generateSimpleSummary(clauses: any[]) {
 export async function generateDeepAnalysis(clauses: any[]) {
   try {
     // Prepare the input for OpenAI
-    const clauseTexts = clauses.map(clause => {
-      return `Clause: ${clause.text}
-      Tags: ${clause.tags.join(', ')}
-      Label: ${clause.label || 'unlabeled'}
-      Explanation: ${clause.explanation || 'No explanation provided'}`;
+    const clauseContext = clauses.map(clause => {
+      return `Clause (ID: ${clause.id}, Tags: ${clause.tags.join(', ')}, Label: ${clause.label || 'unlabeled'}, Explanation: ${clause.explanation || 'N/A'}):\n${clause.text}`;
     }).join('\n\n');
 
-    const prompt = `
-    Generate a comprehensive analysis of the following contract clauses.
-    Include:
-    1. Overall assessment of the contract
-    2. Detailed analysis of key clauses (especially those labeled 'bad' or 'harsh')
-    3. Potential negotiation points
-    4. Recommendations for changes
-    5. Comparison to industry standards where relevant
-    
-    Contract clauses:
-    ${clauseTexts}
-    
-    Analysis:
-    `;
+    const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
+      {
+        role: 'system',
+        content: `Generate a comprehensive analysis AND specific recommendations for the following contract clauses.
+Structure the response clearly:
+1.  **Comprehensive Analysis:** Overall assessment, detailed analysis of key/risky clauses, potential negotiation points, comparison to standards.
+2.  **Recommendations:** Bulleted list of specific actions or suggested modifications, with rationale.`
+      },
+      {
+        role: 'user',
+        content: `Contract clauses:\n${clauseContext}\n\nGenerate Analysis and Recommendations:`
+      }
+    ];
 
-    // Call OpenAI API
-    const response = await openai.createCompletion({
-      model: "text-davinci-003", // or the latest recommended model
-      prompt,
-      max_tokens: 1000,
+    // Call OpenAI Chat Completions API
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o",
+      messages: messages,
+      max_tokens: 1500,
       temperature: 0.4,
     });
 
-    // Extract the analysis
-    const analysis = response.data.choices[0].text?.trim() || 'Unable to generate analysis.';
+    // Extract the analysis and recommendations
+    const content = response.choices[0].message?.content?.trim() || 'Unable to generate analysis and recommendations.';
     
-    // Generate recommendations in a separate call for more focused output
-    const recommendationsPrompt = `
-    Based on the following contract clauses, provide specific recommendations for negotiation or modification.
-    For each recommendation, explain the rationale and suggest alternative language where appropriate.
+    // Simple parsing based on expected structure (adjust as needed)
+    const analysisMatch = content.match(/Comprehensive Analysis:(.*?)(Recommendations:|###|$)/si);
+    const recommendationsMatch = content.match(/Recommendations:(.*)/si);
     
-    Contract clauses:
-    ${clauseTexts}
-    
-    Recommendations:
-    `;
-    
-    const recommendationsResponse = await openai.createCompletion({
-      model: "text-davinci-003",
-      prompt: recommendationsPrompt,
-      max_tokens: 800,
-      temperature: 0.4,
-    });
-    
-    const recommendations = recommendationsResponse.data.choices[0].text?.trim() || 'Unable to generate recommendations.';
+    const analysis = analysisMatch ? analysisMatch[1].trim() : "Analysis could not be extracted.";
+    const recommendations = recommendationsMatch ? recommendationsMatch[1].trim().split(/\n(?:\* |- )/).map(rec => rec.trim()).filter(rec => rec.length > 0) : ["Recommendations could not be extracted."];
     
     // Calculate risk assessment
     const riskAssessment = calculateRiskAssessment(clauses);
     
     return {
       analysis,
-      recommendations,
+      recommendations, // Return as an array of strings
       riskAssessment,
     };
   } catch (error) {
@@ -212,22 +212,24 @@ function extractKeyPoints(summary: string): string[] {
  * @returns Risk assessment object
  */
 function calculateRiskAssessment(clauses: any[]) {
-  // Count clauses by label
-  const labelCounts = {
-    good: clauses.filter(c => c.label === 'good').length,
-    bad: clauses.filter(c => c.label === 'bad').length,
+  let totalSeverity = 0;
+  const counts = {
+    favorable: clauses.filter(c => c.label === 'favorable').length,
+    unfavorable: clauses.filter(c => c.label === 'unfavorable').length,
     harsh: clauses.filter(c => c.label === 'harsh').length,
-    free: clauses.filter(c => c.label === 'free').length,
-    unlabeled: clauses.filter(c => !c.label).length,
+    standardProvision: clauses.filter(c => c.label === 'standard provision').length,
+    unknown: 0
   };
   
   // Calculate total labeled clauses
-  const totalLabeled = labelCounts.good + labelCounts.bad + labelCounts.harsh + labelCounts.free;
+  const totalLabeled = Object.values(counts).reduce((sum, count) => sum + count, 0);
   
   // Calculate risk score
-  const riskScore = totalLabeled > 0 
-    ? Math.round((labelCounts.bad + labelCounts.harsh * 1.5) / totalLabeled * 100) 
-    : 50; // Default score if no labels
+  let riskScore = 50;
+  if (totalLabeled > 0) {
+    riskScore = 50 + (counts.harsh * 50) - (counts.unfavorable * 30);
+    riskScore = Math.max(0, Math.min(100, Math.round(riskScore)));
+  }
   
   // Determine risk level
   let riskLevel;
@@ -240,17 +242,26 @@ function calculateRiskAssessment(clauses: any[]) {
   // Identify key risk areas (tags from bad/harsh clauses)
   const riskAreas = new Set<string>();
   clauses
-    .filter(c => c.label === 'bad' || c.label === 'harsh')
-    .forEach(c => c.tags.forEach((tag: string) => riskAreas.add(tag)));
+    .filter(c => c.label === 'unfavorable' || c.label === 'harsh')
+    .forEach(c => c.tags?.forEach((tag: string) => riskAreas.add(tag))); // Added safe navigation for tags
   
   return {
     riskScore,
     riskLevel,
     riskAreas: Array.from(riskAreas),
-    clauseBreakdown: labelCounts,
+    clauseBreakdown: counts,
   };
 }
 
+/**
+ * Filters clauses considered risky (bad or harsh).
+ * @param clauses Array of clause objects
+ */
+function filterRiskyClauses(clauses: any[]) {
+  return clauses.filter(c => c.label === 'unfavorable' || c.label === 'harsh');
+}
+
+// Export individual functions directly if used elsewhere, or keep default export
 export default {
   extractClauses,
   generateSimpleSummary,

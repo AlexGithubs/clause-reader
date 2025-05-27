@@ -19,3 +19,22 @@ localhost-key.pem
 .vscode/
 .idea/
 .DS_Store
+
+# Database files
+.db/
+*.db
+*.sqlite
+*.sqlite3
+
+# Debug and temporary files
+debug-data.js
+tmp/
+temp/
+set-admin.js
+
+# Build artifacts
+tsconfig.tsbuildinfo
+
+# Logs
+*.log
+logs/

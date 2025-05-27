@@ -1,83 +1,85 @@
 import React, { useState } from 'react';
-import Link from 'next/link';
+import { useRouter } from 'next/router';
 import { useAuth } from './AuthContext';
-import styles from '@/styles/Auth.module.css';
+import Link from 'next/link';
+import styles from '../../styles/Auth.module.css';
 
 const LoginForm: React.FC = () => {
-  const { login, isIdentityReady } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const router = useRouter();
+  const { login } = useAuth();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Validate form
     if (!email || !password) {
-      setError('Both email and password are required');
+      setErrorMessage('Email and password are required');
       return;
     }
     
     try {
-      setError('');
-      setIsSubmitting(true);
-      
+      setIsLoading(true);
+      setErrorMessage('');
       await login(email, password);
       
-      // The redirect will be handled by the useEffect in the login page
-    } catch (error) {
-      console.error('Login error:', error);
-      setError('Invalid email or password');
+      // Redirect to dashboard on success
+      router.push('/dashboard');
+    } catch (err: any) {
+      console.error('Login error:', err);
+      setErrorMessage(err.message || 'Failed to sign in');
     } finally {
-      setIsSubmitting(false);
+      setIsLoading(false);
     }
   };
 
   return (
-    <form className={styles.form} onSubmit={handleSubmit}>
-      {error && <div className={styles.errorMessage}>{error}</div>}
-      
-      <div className={styles.formGroup}>
-        <label htmlFor="email" className={styles.label}>Email</label>
-        <input
-          id="email"
-          type="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          className={styles.input}
-          placeholder="your@email.com"
-          required
-        />
+    <div className={styles.authContainer}>
+      <div className={styles.authBox}>
+        <h2>Log In</h2>
+        <form onSubmit={handleSubmit}>
+          {errorMessage && <div className={styles.errorMessage}>{errorMessage}</div>}
+          
+          <div className={styles.formGroup}>
+            <label htmlFor="email">Email</label>
+            <input
+              id="email"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="your@email.com"
+              required
+            />
+          </div>
+          
+          <div className={styles.formGroup}>
+            <label htmlFor="password">Password</label>
+            <input
+              id="password"
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="••••••••"
+              required
+            />
+          </div>
+          
+          <button 
+            type="submit" 
+            className={styles.submitButton}
+            disabled={isLoading}
+          >
+            {isLoading ? 'Signing in...' : 'Sign In'}
+          </button>
+          
+          <div className={styles.formFooter}>
+            <p>Don't have an account? <Link href="/signup">Sign up</Link></p>
+          </div>
+        </form>
       </div>
-      
-      <div className={styles.formGroup}>
-        <label htmlFor="password" className={styles.label}>Password</label>
-        <input
-          id="password"
-          type="password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          className={styles.input}
-          placeholder="********"
-          required
-        />
-      </div>
-      
-      <button 
-        type="submit" 
-        className={styles.submitButton}
-        disabled={isSubmitting || !isIdentityReady}
-      >
-        {isSubmitting ? 'Logging in...' : 'Log In'}
-      </button>
-      
-      <div className={styles.formFooter}>
-        <p>
-          Don't have an account? <Link href="/signup" className={styles.link}>Sign up</Link>
-        </p>
-      </div>
-    </form>
+    </div>
   );
 };
 

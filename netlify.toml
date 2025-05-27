@@ -14,11 +14,11 @@
   functions = "netlify/functions"
   identity = true      # Turn on the GoTrue emulator
   jwtRolePath = "user_metadata.role"
-  jwtSecret = "YOUR_JWT_SECRET_HERE"
+  jwtSecret = "c7c9fe5168017a2914b65dc6c2fa7c3ab5bfdef34b201ceb34bf099f4816d7ba"
   https = { keyFile = "localhost-key.pem", certFile = "localhost.pem" }
 
 # Redirects for client-side SPA routing
-# [[redirects]]
+#[[redirects]]
 #   from = "/*"
 #   to = "/index.html"
 #   status = 200

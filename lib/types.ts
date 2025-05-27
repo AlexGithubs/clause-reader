@@ -29,7 +29,7 @@ export interface User {
   }
   
   // Clause types
-  export type ClauseLabel = 'good' | 'bad' | 'harsh' | 'free';
+  export type ClauseLabel = 'favorable' | 'unfavorable' | 'harsh' | 'standard provision';
   
   export interface Clause {
     id: string;
@@ -43,6 +43,12 @@ export interface User {
       left: number;
       width: number;
       height: number;
+    };
+    benchmark?: {
+      severity: number;
+      percentile: number;
+      tag: string;
+      comparison: string;
     };
   }
   
@@ -77,10 +83,21 @@ export interface User {
     };
   }
   
+  export interface BenchmarkData {
+    id: string;
+    text: string;
+    tags: string[];
+    benchmark: {
+      percentile: number;
+      comparison: string;
+    };
+  }
+  
   export interface DeepSummary {
     analysis: string;
     recommendations: string;
     riskAssessment: RiskAssessment;
+    benchmarkData: BenchmarkData[];
     detailedClauses: Clause[];
   }
   
@@ -113,7 +130,21 @@ export interface User {
     analysis: string;
     recommendations: string;
     riskAssessment: RiskAssessment;
+    benchmarkData: BenchmarkData[];
     detailedClauses: Clause[];
+  }
+  
+  // Export types
+  export interface ExportOptions {
+    format: 'pdf' | 'docx';
+    fileId: string;
+    clauses: Clause[];
+  }
+  
+  // Message types for chat
+  export interface ChatMessage {
+    role: 'system' | 'user' | 'assistant';
+    content: string;
   }
   
   // Component prop types
@@ -127,6 +158,9 @@ export interface User {
     url: string;
     clauses?: Clause[];
     onClauseClick?: (clauseId: string) => void;
+    onPageChange?: (pageNumber: number) => void;
+    initialPage?: number;
+    syncedPage?: number;
   }
   
   export interface ClauseHighlighterProps {
@@ -163,4 +197,36 @@ export interface User {
   
   export interface AdminOnlyProps {
     children: React.ReactNode;
+  }
+  
+  export interface ExportMenuProps {
+    fileId: string;
+    clauses: Clause[];
+  }
+  
+  export interface ShareLinkProps {
+    fileId: string;
+    onClose: () => void;
+  }
+  
+  export interface SplitPaneViewProps {
+    baseFileId: string;
+    baseUrl: string;
+    baseClauses: Clause[];
+    revisedFileId: string;
+    revisedUrl: string;
+    revisedClauses: Clause[];
+    onSync?: (pageNumber: number) => void;
+  }
+  
+  export interface DiffViewerProps {
+    baseText: string;
+    revisedText: string;
+  }
+  
+  export interface ChatPanelProps {
+    fileId: string;
+    clauses: Clause[];
+    isOpen: boolean;
+    onClose: () => void;
   }
