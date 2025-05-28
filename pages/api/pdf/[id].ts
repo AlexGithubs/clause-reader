@@ -1,68 +1,82 @@
 import { NextApiRequest, NextApiResponse } from 'next';
-import fs from 'fs';
-import path from 'path';
+import { getDocumentById } from '@/lib/supabase-db';
+import { getSupabaseAdmin } from '@/lib/supabase';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  if (req.method !== 'GET') {
+  if (req.method !== 'GET' && req.method !== 'HEAD') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const { id } = req.query;
-
-  if (!id || typeof id !== 'string') {
-    return res.status(400).json({ error: 'Invalid PDF ID' });
-  }
-
-  // Security check - prevent path traversal attacks
-  if (!id.startsWith('real-upload-') || id.includes('..')) {
-    return res.status(400).json({ error: 'Invalid PDF ID format' });
-  }
-
   try {
-    // Find the PDF file in the uploads directory
-    const uploadsDir = path.join(process.cwd(), 'tmp');
-    
-    // List all files in the directory
-    const files = await fs.promises.readdir(uploadsDir);
-    
-    // Find the most recently uploaded PDF file
-    // In a production app, you would have a database mapping IDs to specific files
-    const pdfFiles = files.filter(file => file.endsWith('.pdf'));
-    
-    if (pdfFiles.length === 0) {
-      return res.status(404).json({ error: 'PDF file not found' });
+    const { id } = req.query;
+
+    if (!id || typeof id !== 'string') {
+      return res.status(400).json({ error: 'Missing or invalid document ID' });
     }
+
+    console.log(`Fetching PDF for document: ${id} (method: ${req.method})`);
+
+    // Get document from database
+    const document = await getDocumentById(id);
     
-    // For demo purposes, just serve the most recent PDF
-    // In a production app, you would find the specific file associated with the ID
-    const fileStats = await Promise.all(
-      pdfFiles.map(async (file) => {
-        const stats = await fs.promises.stat(path.join(uploadsDir, file));
-        return { file, ctime: stats.ctime };
-      })
-    );
-    
-    // Sort by creation time (most recent first)
-    fileStats.sort((a, b) => b.ctime.getTime() - a.ctime.getTime());
-    
-    if (fileStats.length === 0) {
-      return res.status(404).json({ error: 'No PDF files found' });
+    if (!document) {
+      return res.status(404).json({ error: 'Document not found' });
     }
-    
-    // Use the most recent file
-    const filePath = path.join(uploadsDir, fileStats[0].file);
-    
-    // Read the file
-    const pdfBuffer = await fs.promises.readFile(filePath);
-    
-    // Set response headers
+
+    if (!document.file_path) {
+      return res.status(404).json({ error: 'PDF file not found for this document' });
+    }
+
+    // For HEAD requests, we just need to check if the file exists
+    if (req.method === 'HEAD') {
+      // Check if file exists in storage
+      const { data, error } = await getSupabaseAdmin().storage
+        .from('pdfs')
+        .list(document.file_path.split('/').slice(0, -1).join('/'), {
+          search: document.file_path.split('/').pop()
+        });
+
+      if (error || !data || data.length === 0) {
+        return res.status(404).end();
+      }
+
+      // Set headers for HEAD response
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Cache-Control', 'public, max-age=3600');
+      return res.status(200).end();
+    }
+
+    // For GET requests, download and serve the file
+    const { data, error } = await getSupabaseAdmin().storage
+      .from('pdfs')
+      .download(document.file_path);
+
+    if (error) {
+      console.error('Error downloading PDF from storage:', error);
+      return res.status(500).json({ error: 'Failed to retrieve PDF file' });
+    }
+
+    if (!data) {
+      return res.status(404).json({ error: 'PDF file not found in storage' });
+    }
+
+    // Convert blob to buffer
+    const buffer = Buffer.from(await data.arrayBuffer());
+
+    // Set appropriate headers
     res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `inline; filename="${fileStats[0].file}"`);
-    
+    res.setHeader('Content-Length', buffer.length);
+    res.setHeader('Cache-Control', 'public, max-age=3600'); // Cache for 1 hour
+
     // Send the PDF file
-    res.send(pdfBuffer);
+    res.send(buffer);
+
   } catch (error) {
-    console.error('Error serving PDF file:', error);
-    res.status(500).json({ error: 'Error serving PDF file' });
+    console.error('Error in PDF endpoint:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+    return res.status(500).json({ 
+      error: 'Failed to serve PDF file',
+      details: errorMessage
+    });
   }
 } 

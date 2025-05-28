@@ -1,11 +1,11 @@
-import { supabase } from './supabase';
+import { getSupabaseAdmin } from './supabase';
 import { Document, Clause } from './supabase';
 import { v4 as uuidv4 } from 'uuid';
 
 export async function createDocument(userId: string, name: string, filePath: string, fullText?: string) {
     const documentId = `processed-${uuidv4()}`;
     
-    const { data, error } = await supabase
+    const { data, error } = await getSupabaseAdmin()
       .from('documents')
       .insert({
         id: documentId,
@@ -25,7 +25,7 @@ export async function createDocument(userId: string, name: string, filePath: str
   }
   
   export async function updateDocumentStatus(documentId: string, status: 'pending' | 'processing' | 'completed' | 'error') {
-    const { error } = await supabase
+    const { error } = await getSupabaseAdmin()
       .from('documents')
       .update({ status })
       .eq('id', documentId);
@@ -37,7 +37,7 @@ export async function createDocument(userId: string, name: string, filePath: str
   }
   
   export async function getDocumentById(documentId: string) {
-    const { data, error } = await supabase
+    const { data, error } = await getSupabaseAdmin()
       .from('documents')
       .select('*')
       .eq('id', documentId)
@@ -52,7 +52,7 @@ export async function createDocument(userId: string, name: string, filePath: str
   }
   
   export async function getDocumentsByUserId(userId: string) {
-    const { data, error } = await supabase
+    const { data, error } = await getSupabaseAdmin()
       .from('documents')
       .select('*')
       .eq('user_id', userId)
@@ -68,7 +68,7 @@ export async function createDocument(userId: string, name: string, filePath: str
   
   // Clause operations
   
-  export async function saveClausesToDocument(documentId: string, clauses: Omit<Clause, 'id'>[]) {
+  export async function saveClausesToDocument(documentId: string, clauses: Omit<Clause, 'id' | 'document_id'>[]) {
     // Add IDs to clauses
     const clausesWithIds = clauses.map(clause => ({
       ...clause,
@@ -76,7 +76,7 @@ export async function createDocument(userId: string, name: string, filePath: str
       document_id: documentId
     }));
     
-    const { data, error } = await supabase
+    const { data, error } = await getSupabaseAdmin()
       .from('clauses')
       .insert(clausesWithIds);
       
@@ -89,7 +89,7 @@ export async function createDocument(userId: string, name: string, filePath: str
   }
   
   export async function getClausesByDocumentId(documentId: string) {
-    const { data, error } = await supabase
+    const { data, error } = await getSupabaseAdmin()
       .from('clauses')
       .select('*')
       .eq('document_id', documentId);
@@ -108,7 +108,7 @@ export async function createDocument(userId: string, name: string, filePath: str
     const fileBuffer = Buffer.from(fileBase64, 'base64');
     const filePath = `${userId}/${uuidv4()}-${fileName}`;
     
-    const { data, error } = await supabase
+    const { data, error } = await getSupabaseAdmin()
       .storage
       .from('pdfs')
       .upload(filePath, fileBuffer, {
@@ -122,7 +122,7 @@ export async function createDocument(userId: string, name: string, filePath: str
     }
     
     // Get public URL
-    const { data: urlData } = supabase
+    const { data: urlData } = getSupabaseAdmin()
       .storage
       .from('pdfs')
       .getPublicUrl(filePath);
@@ -134,7 +134,7 @@ export async function createDocument(userId: string, name: string, filePath: str
   }
   
   export async function getPdfUrl(filePath: string) {
-    const { data } = supabase
+    const { data } = getSupabaseAdmin()
       .storage
       .from('pdfs')
       .getPublicUrl(filePath);

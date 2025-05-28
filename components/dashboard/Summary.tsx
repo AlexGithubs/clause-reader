@@ -3,6 +3,7 @@ import ExportMenu from '@/components/export/ExportMenu';
 import ChatPanel from '@/components/chat/ChatPanel';
 import styles from '@/styles/Dashboard.module.css';
 import Link from 'next/link';
+import { useAuth } from '@/components/auth/AuthContext';
 
 interface SummaryProps {
   searchQuery: string;
@@ -17,26 +18,21 @@ interface SummaryData {
   fileId: string;
   summary: string;
   keyPoints: string[];
-  highlightedClauses: {
+  highlightedClauses: Array<{
     id: string;
     text: string;
     tags: string[];
-    label?: 'favorable' | 'unfavorable' | 'harsh' | 'standard provision';
-    page: number;
-    position: {
-      top: number;
-      left: number;
-      width: number;
-      height: number;
-    };
+    label: string;
     benchmark?: {
       percentile: number;
       comparison: string;
     };
-  }[];
+  }>;
+  fullText?: string;
 }
 
 const Summary: React.FC<SummaryProps> = ({ searchQuery, filter }) => {
+  const { user } = useAuth();
   const [summaryData, setSummaryData] = useState<SummaryData | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
@@ -44,82 +40,78 @@ const Summary: React.FC<SummaryProps> = ({ searchQuery, filter }) => {
 
   useEffect(() => {
     const fetchSummary = async () => {
-      setLoading(true);
-      setError("");
-      
-      // Check localStorage for documents
-      let documentIdsInStorage = Object.keys(localStorage).filter(
-        key => key.startsWith('document_')
-      );
-      
-      if (documentIdsInStorage.length === 0) {
-        setError("No documents found. Please upload a document first.");
+      if (!user) {
         setLoading(false);
         return;
       }
-      
-      // If we have a specific search query, use that ID
-      let documentId = searchQuery || '';
-      
-      // If no search query but we have documents in localStorage, use the first one
-      if (!documentId && documentIdsInStorage.length > 0) {
-        documentId = documentIdsInStorage[0].replace('document_', '');
-      }
-      
-      console.log(`Fetching summary for document ID: ${documentId}`);
-      
-      // Try to get from localStorage first
-      const storedDocument = localStorage.getItem(`document_${documentId}`);
-      if (storedDocument) {
-        try {
-          const parsedData = JSON.parse(storedDocument);
-          if (parsedData.summary && parsedData.highlightedClauses) {
-            console.log("Using document from localStorage");
-            setSummaryData(parsedData);
-            setLoading(false);
-            return;
-          }
-        } catch (e) {
-          console.error("Error parsing stored document:", e);
-          // Continue to API call if parsing fails
-        }
-      }
+
+      setLoading(true);
+      setError("");
       
       try {
-        const response = await fetch("/.netlify/functions/summarize-simple", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ fileId: documentId }),
-        });
+        console.log(`Fetching documents for user: ${user.id}`);
         
-        const data = await response.json();
+        // Fetch user documents from database
+        const response = await fetch(`/api/user-documents?userId=${user.id}`);
         
         if (!response.ok) {
-          if (response.status === 404) {
-            setError(data.message || "Document not found. Please upload a document first.");
-          } else {
-            setError(`Error: ${data.error || response.statusText}`);
-          }
+          const errorData = await response.json();
+          throw new Error(errorData.error || 'Failed to fetch documents');
+        }
+        
+        const data = await response.json();
+        const documents = data.documents || [];
+        
+        if (documents.length === 0) {
+          setError("No documents found. Please upload a document first.");
           setLoading(false);
           return;
         }
         
-        // Save to localStorage for future use
-        localStorage.setItem(`document_${documentId}`, JSON.stringify(data));
+        // Find the document to display
+        let selectedDocument = null;
         
-        setSummaryData(data);
+        if (searchQuery) {
+          // If there's a search query, try to find a document with that ID
+          selectedDocument = documents.find((doc: any) => doc.id === searchQuery);
+        }
+        
+        // If no specific document found or no search query, use the most recent completed document
+        if (!selectedDocument) {
+          selectedDocument = documents
+            .filter((doc: any) => doc.status === 'completed')
+            .sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0];
+        }
+        
+        if (!selectedDocument) {
+          setError("No completed documents found. Please wait for processing to complete or upload a new document.");
+          setLoading(false);
+          return;
+        }
+        
+        console.log(`Using document: ${selectedDocument.id}`);
+        
+        // Transform the document data to match the expected format
+        const transformedData: SummaryData = {
+          fileId: selectedDocument.id,
+          summary: selectedDocument.summary || 'No summary available',
+          keyPoints: selectedDocument.keyPoints || [],
+          highlightedClauses: selectedDocument.clauses || [],
+          fullText: selectedDocument.full_text
+        };
+        
+        setSummaryData(transformedData);
+        
       } catch (err) {
         console.error("Error fetching summary:", err);
-        setError("Failed to fetch document summary. Please try again later.");
+        setError(err instanceof Error ? err.message : "Failed to fetch document summary. Please try again later.");
       } finally {
         setLoading(false);
       }
     };
 
     fetchSummary();
-  }, [searchQuery]);
+  }, [searchQuery, user]);
 
   const toggleChat = () => {
     setIsChatOpen(!isChatOpen);
@@ -190,62 +182,44 @@ const Summary: React.FC<SummaryProps> = ({ searchQuery, filter }) => {
       </div>
       
       <div className={styles.highlightedClauses}>
-        <h3>Issues to Review</h3>
-        
+        <h3>Highlighted Clauses</h3>
         {summaryData.highlightedClauses.length === 0 ? (
-          <p className={styles.noIssues}>No significant issues found.</p>
+          <div className={styles.noIssues}>
+            No concerning clauses found. This contract appears to be well-balanced.
+          </div>
         ) : (
           <div className={styles.clauseList}>
-            {summaryData.highlightedClauses
-              .filter(clause => {
-                // Apply filters
-                if (searchQuery && !clause.text.toLowerCase().includes(searchQuery.toLowerCase())) {
-                  return false;
-                }
-                if (filter.tag && !clause.tags.includes(filter.tag)) {
-                  return false;
-                }
-                if (filter.label && clause.label !== filter.label) {
-                  return false;
-                }
-                return true;
-              })
-              .map(clause => (
-                <div key={clause.id} className={`${styles.clauseCard} ${styles[clause.label]}`}>
-                  <div className={styles.clauseTags}>
-                    {clause.tags.map((tag, index) => (
-                      <span key={index} className={styles.tag}>{tag}</span>
-                    ))}
-                    <span className={`${styles.labelTag} ${styles[clause.label]}`}>
-                      {clause.label}
-                    </span>
-                  </div>
-                  <p className={styles.clauseText}>{clause.text}</p>
-                    
-                    {/* Benchmark comparison display */}
-                    {clause.benchmark && (
-                      <div className={styles.benchmarkBar}>
-                        <div className={styles.benchmarkIndicator} style={{ width: `${clause.benchmark.percentile}%` }}>
-                          <span className={styles.benchmarkText}>{clause.benchmark.comparison}</span>
-                        </div>
-                      </div>
-                    )}
+            {summaryData.highlightedClauses.map((clause) => (
+              <div key={clause.id} className={`${styles.clauseCard} ${styles[clause.label] || ''}`}>
+                <div className={styles.clauseTags}>
+                  {clause.tags.map((tag, index) => (
+                    <span key={index} className={styles.tag}>{tag}</span>
+                  ))}
+                  <span className={`${styles.labelTag} ${styles[clause.label] || ''}`}>
+                    {clause.label}
+                  </span>
                 </div>
-              ))}
+                <p className={styles.clauseText}>{clause.text}</p>
+                {clause.benchmark && (
+                  <div className="mt-2 text-sm text-gray-600">
+                    <strong>Benchmark:</strong> {clause.benchmark.comparison}
+                  </div>
+                )}
+              </div>
+            ))}
           </div>
         )}
       </div>
-        
-        {/* Chat Panel */}
-        {isChatOpen && (
-          <ChatPanel 
-            fileId={summaryData.fileId}
-            clauses={summaryData.highlightedClauses}
-            isOpen={isChatOpen}
-            onClose={() => setIsChatOpen(false)}
-          />
-        )}
-    </div>
+      </div>
+      
+      {isChatOpen && summaryData && (
+        <ChatPanel
+          fileId={summaryData.fileId}
+          clauses={summaryData.highlightedClauses}
+          fullText={summaryData.fullText || ''}
+          onClose={toggleChat}
+        />
+      )}
     </main>
   );
 };

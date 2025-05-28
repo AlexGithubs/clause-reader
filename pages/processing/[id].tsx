@@ -1,39 +1,71 @@
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
+import { useAuth } from '@/components/auth/AuthContext';
 import styles from '../../styles/Processing.module.css'; // We'll create this CSS module next
 
 const ProcessingPage: React.FC = () => {
   const router = useRouter();
   const { id } = router.query; // Get the fileId from the URL path
+  const { user, isLoading } = useAuth();
   const [statusMessage, setStatusMessage] = useState('Analyzing your contract...');
 
+  // Redirect if not logged in
   useEffect(() => {
-    if (!id || typeof id !== 'string') {
-      // If ID is missing or invalid, maybe redirect to upload or show error
-      setStatusMessage('Invalid processing request.');
+    if (!isLoading && !user) {
+      router.push('/login');
+    }
+  }, [user, isLoading, router]);
+
+  useEffect(() => {
+    if (!id || typeof id !== 'string' || !user) {
+      if (id && typeof id === 'string') {
+        setStatusMessage('Invalid processing request.');
+      }
       return;
     }
 
     console.log(`Processing page mounted for ID: ${id}`);
 
-    // Set up an interval to check for results in localStorage
-    const intervalId = setInterval(() => {
+    // Set up an interval to check for completion in the database
+    const intervalId = setInterval(async () => {
       try {
-        // Check for data using the key format the contract page uses
-        const storageKey = `document_${id}`;
-        const storedData = localStorage.getItem(storageKey);
-        if (storedData) {
-          console.log(`Data found in localStorage with key ${storageKey} for ID: ${id}. Redirecting...`);
-          clearInterval(intervalId); // Stop checking
-          router.push(`/contract/${id}`); // Redirect to the contract view page
+        console.log(`Checking processing status for document: ${id}`);
+        
+        // Fetch user documents from database
+        const response = await fetch(`/api/user-documents?userId=${user.id}`);
+        
+        if (!response.ok) {
+          console.error('Failed to fetch documents:', await response.text());
+          return;
+        }
+        
+        const data = await response.json();
+        const documents = data.documents || [];
+        
+        // Find the specific document
+        const document = documents.find((doc: any) => doc.id === id);
+        
+        if (document) {
+          console.log(`Document found with status: ${document.status}`);
+          
+          if (document.status === 'completed') {
+            console.log(`Document ${id} processing completed. Redirecting...`);
+            clearInterval(intervalId);
+            router.push(`/contract/${id}`);
+          } else if (document.status === 'error') {
+            console.log(`Document ${id} processing failed.`);
+            setStatusMessage('Processing failed. Please try uploading again.');
+            clearInterval(intervalId);
+          } else if (document.status === 'processing') {
+            setStatusMessage('Still analyzing your contract...');
+          }
         } else {
-          // Optional: Update status message periodically if needed
-          // console.log(`Still processing ID: ${id}, data not found yet...`);
+          console.log(`Document ${id} not found yet, still processing...`);
         }
       } catch (error) {
-        console.error('Error checking localStorage:', error);
+        console.error('Error checking processing status:', error);
         setStatusMessage('An error occurred while checking progress.');
-        clearInterval(intervalId); // Stop on error
+        clearInterval(intervalId);
       }
     }, 3000); // Check every 3 seconds
 
@@ -43,7 +75,15 @@ const ProcessingPage: React.FC = () => {
       clearInterval(intervalId);
     };
 
-  }, [id, router]); // Depend on id and router
+  }, [id, router, user]);
+
+  if (isLoading) {
+    return <div className={styles.container}>Loading...</div>;
+  }
+
+  if (!user) {
+    return null; // Will redirect due to useEffect
+  }
 
   return (
     <div className={styles.container}>

@@ -25,7 +25,8 @@ function base64ToUint8Array(base64: string): Uint8Array {
 }
 
 interface PDFViewerProps {
-  pdfData: string | null;
+  pdfData?: string | null;
+  pdfUrl?: string;
   fullText: string;
   clauses?: {
     id: string;
@@ -49,6 +50,7 @@ interface PDFViewerProps {
 
 const PDFViewer: React.FC<PDFViewerProps> = ({
   pdfData,
+  pdfUrl,
   fullText,
   clauses = [],
   onClauseClick,
@@ -259,6 +261,17 @@ const PDFViewer: React.FC<PDFViewerProps> = ({
     return styles.textViewContainer;
   };
 
+  // Determine the PDF source - prefer pdfData, fallback to pdfUrl
+  const getPdfSource = () => {
+    if (pdfData) {
+      return { data: base64ToUint8Array(pdfData) };
+    }
+    if (pdfUrl) {
+      return pdfUrl;
+    }
+    return null;
+  };
+
   return (
     <div className={getContainerClassName()} ref={pdfContainerRef}>
       <div className={isFullscreen ? styles.fullscreenToolbar : styles.pdfControls}>
@@ -282,10 +295,10 @@ const PDFViewer: React.FC<PDFViewerProps> = ({
 
       <div className={getWrapperClassName()} ref={pdfWrapperRef}>
           <Document
-            file={pdfData ? { data: base64ToUint8Array(pdfData) } : null}
+            file={getPdfSource()}
             onLoadSuccess={onDocumentLoadSuccess}
             loading={<div className={styles.loading}>Loading PDF...</div>}
-            error={<div className={styles.error}>Failed to load PDF</div>}
+            error={<div className={styles.error}>No PDF file specified</div>}
             className={styles.pdfDocument}
           >
             <div className={styles.pageContainer} style={{ transform: `scale(${scale})` }}>

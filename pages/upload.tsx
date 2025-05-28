@@ -9,6 +9,7 @@ import styles from '@/styles/Dashboard.module.css';
 
 interface UploadResponse {
   fileId: string;
+  message: string;
 }
 
 const Upload: NextPage = () => {
@@ -18,6 +19,7 @@ const Upload: NextPage = () => {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadStatus, setUploadStatus] = useState<'idle' | 'uploading' | 'processing' | 'success' | 'error'>('idle');
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string>('');
 
   // Redirect if not logged in
   useEffect(() => {
@@ -40,6 +42,7 @@ const Upload: NextPage = () => {
     setPreviewUrl(URL.createObjectURL(file));
     setUploadStatus('idle');
     setUploadProgress(0);
+    setErrorMessage('');
   };
 
   // Helper function to read file as base64
@@ -61,72 +64,83 @@ const Upload: NextPage = () => {
   };
 
   const handleUpload = async () => {
-    if (!file) return;
-
-    // Generate fileId on the frontend
-    const fileId = 'processed-' + crypto.randomUUID(); // Use browser's crypto API
-    console.log(`Generated frontend fileId: ${fileId}`);
+    if (!file || !user) return;
 
     try {
-      setUploadStatus('uploading'); // Initial status is uploading
-      console.log("=== PROCESSING PROCESS STARTED (Direct to Extract) ===");
-      console.log("File being processed:", file.name, file.size);
+      setUploadStatus('uploading');
+      setUploadProgress(10);
+      setErrorMessage('');
+      
+      console.log("=== UPLOAD PROCESS STARTED ===");
+      console.log("File being uploaded:", file.name, file.size);
       
       // Read file content as base64
       console.log("Reading file content to base64...");
       const fileContentBase64 = await readFileAsBase64(file);
       console.log(`File content read successfully (Base64 length: ${fileContentBase64.length})`);
       
-      // --- Initiate /api/extract call (DON'T await) ---
-      setUploadStatus('processing'); // Now update status to processing
-      console.log(`Initiating background extraction request for fileId: ${fileId}...`);
+      setUploadProgress(30);
 
-      // Call fetch but don't wait for it to complete here
-      fetch('/api/extract', {
+      // Step 1: Upload PDF to storage and create document record
+      console.log("Uploading PDF to storage...");
+      const uploadResponse = await fetch('/api/upload-to-db', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        // Send filename, base64 content, AND the generated fileId
         body: JSON.stringify({ 
-            fileName: file.name,
-            fileContentBase64,
-            fileId // Pass the generated ID
+          fileName: file.name,
+          fileContentBase64,
+          userId: user.id
         }), 
-      }).then(async (extractResponse) => {
-          // This runs when the API eventually responds (in the background)
-          console.log(`Background extract response status for ${fileId}:`, extractResponse.status);
-          if (!extractResponse.ok) {
-            const errorText = await extractResponse.text();
-            console.error(`Background extract request failed for ${fileId}:`, errorText);
-            // How to signal this error to the user on the processing page? Could store an error status in localStorage.
-            localStorage.setItem(`error_${fileId}`, `Extraction failed: ${errorText}`);
-          } else {
-            const extractData = await extractResponse.json();
-            console.log(`Background extract successful for ${fileId}. Saving data to localStorage...`);
-            // --- Save results to localStorage using the fileId --- 
-            try {
-              // Use the key format expected by the contract page (`document_[id]`)
-              const storageKey = `document_${fileId}`;
-              localStorage.setItem(storageKey, JSON.stringify(extractData)); 
-              console.log(`Successfully saved results to localStorage for key: ${storageKey}`);
-            } catch (storageError) {
-              console.error(`Error saving results to localStorage for ${fileId}:`, storageError);
-              localStorage.setItem(`error_${fileId}`, `Failed to save results after successful extraction.`);
-            }
-          }
-        }).catch(fetchError => {
-          console.error(`Network error during background extract for ${fileId}:`, fetchError);
-          localStorage.setItem(`error_${fileId}`, `Network error during extraction: ${fetchError.message}`);
-        });
+      });
 
-      // --- Redirect to Processing Page IMMEDIATELY after starting the fetch ---
-      console.log(`Redirecting to processing page: /processing/${fileId}`);
-      router.push(`/processing/${fileId}`);
+      if (!uploadResponse.ok) {
+        const errorText = await uploadResponse.text();
+        throw new Error(`Upload failed: ${errorText}`);
+      }
+
+      const uploadData = await uploadResponse.json();
+      const documentId = uploadData.fileId;
+      console.log(`PDF uploaded successfully. Document ID: ${documentId}`);
+      
+      setUploadProgress(50);
+      setUploadStatus('processing');
+
+      // Step 2: Extract and analyze content
+      console.log("Starting content extraction and analysis...");
+      const extractResponse = await fetch('/api/extract-to-db', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ 
+          documentId,
+          fileName: file.name,
+          fileContentBase64
+        }), 
+      });
+
+      if (!extractResponse.ok) {
+        const errorText = await extractResponse.text();
+        throw new Error(`Analysis failed: ${errorText}`);
+      }
+
+      const extractData = await extractResponse.json();
+      console.log("Content extraction and analysis completed successfully");
+      
+      setUploadProgress(100);
+      setUploadStatus('success');
+
+      // Redirect to the contract page
+      setTimeout(() => {
+        router.push(`/contract/${documentId}`);
+      }, 1000);
 
     } catch (error) {
       console.error('Upload error:', error);
       setUploadStatus('error');
+      setErrorMessage(error instanceof Error ? error.message : 'An unknown error occurred');
     }
   };
 
@@ -147,51 +161,6 @@ const Upload: NextPage = () => {
       <h1 className={styles.title}>Upload Contract</h1>
       
       <div className={styles.uploadContainer}>
-        {/* Debug tools section - Commented out to prevent mock data creation 
-        <div style={{marginBottom: '20px', padding: '10px', border: '1px dashed #ccc', borderRadius: '5px'}}>
-          <h3>Debug Tools</h3>
-          <p>Having issues with data not appearing? Try creating a test document:</p>
-          <button
-            onClick={() => {
-              // Create a test document in localStorage
-              const testDocId = "test-doc-" + Date.now();
-              const testData = {
-                fileId: testDocId,
-                summary: "This is a test document created from the debug button.",
-                keyPoints: ["Test point 1", "Test point 2", "Test point 3"],
-                highlightedClauses: [
-                  {
-                    id: "test-clause-1",
-                    text: "This is a test clause for debugging purposes.",
-                    tags: ["test", "debug"],
-                    label: "good",
-                    benchmark: {
-                      percentile: 25,
-                      comparison: "More favorable than 75% of similar clauses"
-                    }
-                  }
-                ]
-              };
-              
-              localStorage.setItem('latestFileId', testDocId);
-              localStorage.setItem('document_' + testDocId, JSON.stringify(testData));
-              
-              alert(`Test document created with ID: ${testDocId}\nCheck the console for details.`);
-              console.log("Test document created:", testData);
-              console.log("localStorage keys:", Object.keys(localStorage));
-              
-              // Navigate to dashboard after a delay
-              setTimeout(() => {
-                router.push('/dashboard');
-              }, 1000);
-            }}
-            style={{padding: '5px 10px', backgroundColor: '#f0f0f0', cursor: 'pointer'}}
-          >
-            Create Test Document
-          </button>
-        </div>
-        */}
-        
         <div className={styles.uploadLeft}>
           <FileUploader 
             onFileChange={handleFileChange} 
@@ -212,13 +181,13 @@ const Upload: NextPage = () => {
                 disabled={uploadStatus === 'uploading' || uploadStatus === 'processing'}
               >
                 {uploadStatus === 'idle' && 'Upload and Analyze'}
-                {uploadStatus === 'uploading' && `Uploading ${uploadProgress}%`}
+                {uploadStatus === 'uploading' && `Uploading... ${uploadProgress}%`}
                 {uploadStatus === 'processing' && 'Analyzing with AI...'}
                 {uploadStatus === 'success' && 'Success! Redirecting...'}
                 {uploadStatus === 'error' && 'Error - Try Again'}
               </button>
               
-              {uploadStatus === 'uploading' && (
+              {(uploadStatus === 'uploading' || uploadStatus === 'processing') && (
                 <div className={styles.progressBarContainer}>
                   <div 
                     className={styles.progressBar} 
@@ -229,7 +198,7 @@ const Upload: NextPage = () => {
               
               {uploadStatus === 'error' && (
                 <p className={styles.errorMessage}>
-                  There was an error uploading or processing your file. Please try again.
+                  {errorMessage || 'There was an error uploading or processing your file. Please try again.'}
                 </p>
               )}
             </div>

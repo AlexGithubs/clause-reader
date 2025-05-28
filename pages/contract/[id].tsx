@@ -13,6 +13,7 @@ interface ContractData {
   keyPoints: string[];
   highlightedClauses: any[];
   fullText?: string;
+  filePath?: string;
 }
 
 const ContractPage = () => {
@@ -32,61 +33,84 @@ const ContractPage = () => {
     }
   }, [user, isLoading, router]);
 
-  // Fetch contract data from localStorage
+  // Fetch contract data from database
   useEffect(() => {
-    if (id && typeof id === 'string') {
-      try {
-        setLoading(true);
-        const key = `document_${id}`;
-        const data = localStorage.getItem(key);
-        
-        if (data) {
-          const parsedData = JSON.parse(data);
+    if (id && typeof id === 'string' && user) {
+      const fetchContractData = async () => {
+        try {
+          setLoading(true);
+          console.log(`Fetching contract data for ID: ${id}`);
           
-          // Ensure each clause has proper position data for highlighting
-          if (parsedData.highlightedClauses) {
-            parsedData.highlightedClauses = parsedData.highlightedClauses.map((clause: any) => {
-              // If missing position data, add default values
-              if (!clause.position) {
-                clause.position = {
-                  top: 100,
-                  left: 50,
-                  width: 500,
-                  height: 30
-                };
-              }
-              // Make sure page property exists
-              if (!clause.page) {
-                clause.page = 1;
-              }
-              return clause;
-            });
+          // Fetch user documents from database
+          const response = await fetch(`/api/user-documents?userId=${user.id}`);
+          
+          if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || 'Failed to fetch documents');
           }
           
-          setContractData(parsedData);
+          const data = await response.json();
+          const documents = data.documents || [];
+          
+          // Find the specific document
+          const document = documents.find((doc: any) => doc.id === id);
+          
+          if (!document) {
+            setError(`Contract with ID ${id} not found`);
+            setLoading(false);
+            return;
+          }
+          
+          // Transform the document data to match the expected format
+          const transformedData: ContractData = {
+            fileId: document.id,
+            summary: document.summary || 'No summary available',
+            keyPoints: document.keyPoints || [],
+            highlightedClauses: (document.clauses || []).map((clause: any) => ({
+              id: clause.id,
+              text: clause.text,
+              tags: clause.tags || [],
+              label: clause.label,
+              page: clause.page || 1,
+              position: clause.position || {
+                top: 100,
+                left: 50,
+                width: 500,
+                height: 30
+              },
+              explanation: clause.explanation,
+              benchmark: clause.benchmark
+            })),
+            fullText: document.full_text,
+            filePath: document.file_path
+          };
+          
+          setContractData(transformedData);
           setLoading(false);
-        } else {
-          setError(`Contract with ID ${id} not found`);
+          
+        } catch (error) {
+          console.error('Error loading contract:', error);
+          setError(error instanceof Error ? error.message : 'Failed to load contract data');
           setLoading(false);
         }
-      } catch (error) {
-        console.error('Error loading contract:', error);
-        setError('Failed to load contract data');
-        setLoading(false);
-      }
+      };
+
+      fetchContractData();
     }
-  }, [id]);
+  }, [id, user]);
 
   // Check if PDF URL is valid
   useEffect(() => {
-    if (contractData?.fileId?.startsWith('real-upload-')) {
+    if (contractData?.fileId && contractData?.filePath) {
       // Test if the PDF URL is accessible
       const testPdfUrl = async () => {
         try {
-          const response = await fetch(`/api/pdf/${contractData.fileId}`);
+          const response = await fetch(`/api/pdf/${contractData.fileId}`, { method: 'HEAD' });
           if (!response.ok) {
-            console.error('PDF not available:', await response.text());
+            console.error('PDF not available:', response.status);
             setPdfUrlError(true);
+          } else {
+            setPdfUrlError(false);
           }
         } catch (err) {
           console.error('Error checking PDF URL:', err);
@@ -95,8 +119,11 @@ const ContractPage = () => {
       };
       
       testPdfUrl();
+    } else if (contractData && !contractData.filePath) {
+      // No file path means no PDF available
+      setPdfUrlError(true);
     }
-  }, [contractData]);
+  }, [contractData?.fileId, contractData?.filePath]);
 
   if (isLoading || loading) {
     return <div className={styles.loading}>Loading...</div>;
@@ -141,13 +168,10 @@ const ContractPage = () => {
   }
 
   // Generate a PDF URL for the contract
-  // For real uploads, we use a placeholder until a proper storage solution is implemented
-  // In a production app, this would be a URL to the stored PDF
   let pdfUrl = '/demo-contract.pdf';
   
-  // For real uploaded files, construct a URL using the fileId
-  if (contractData.fileId.startsWith('real-upload-') && !pdfUrlError) {
-    // This is a demonstration URL, in a real app we would have secure storage access
+  // For uploaded files, construct a URL using the fileId
+  if (contractData.filePath && !pdfUrlError) {
     pdfUrl = `/api/pdf/${contractData.fileId}`;
   }
 

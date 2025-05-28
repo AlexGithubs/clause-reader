@@ -5,6 +5,7 @@ CREATE TABLE IF NOT EXISTS documents (
   name TEXT NOT NULL,
   file_path TEXT NOT NULL,
   full_text TEXT,
+  summary TEXT,
   status TEXT NOT NULL CHECK (status IN ('pending', 'processing', 'completed', 'error')),
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -22,13 +23,23 @@ CREATE TABLE IF NOT EXISTS clauses (
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+-- Create key_points table
+CREATE TABLE IF NOT EXISTS key_points (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  document_id TEXT NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
+  point_text TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
 -- Create indexes for faster queries
 CREATE INDEX IF NOT EXISTS idx_documents_user_id ON documents(user_id);
 CREATE INDEX IF NOT EXISTS idx_clauses_document_id ON clauses(document_id);
+CREATE INDEX IF NOT EXISTS idx_key_points_document_id ON key_points(document_id);
 
 -- Enable Row Level Security (RLS)
 ALTER TABLE documents ENABLE ROW LEVEL SECURITY;
 ALTER TABLE clauses ENABLE ROW LEVEL SECURITY;
+ALTER TABLE key_points ENABLE ROW LEVEL SECURITY;
 
 -- Create policies for documents
 CREATE POLICY "Users can view only their own documents"
@@ -94,6 +105,89 @@ CREATE POLICY "Users can delete clauses for their documents"
       WHERE documents.id = clauses.document_id
       AND documents.user_id = auth.uid()
     )
+  );
+
+-- Create policies for key_points
+CREATE POLICY "Users can view key points for their documents"
+  ON key_points
+  FOR SELECT
+  USING (
+    EXISTS (
+      SELECT 1 FROM documents
+      WHERE documents.id = key_points.document_id
+      AND documents.user_id = auth.uid()
+    )
+  );
+
+CREATE POLICY "Users can insert key points for their documents"
+  ON key_points
+  FOR INSERT
+  WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM documents
+      WHERE documents.id = key_points.document_id
+      AND documents.user_id = auth.uid()
+    )
+  );
+
+CREATE POLICY "Users can update key points for their documents"
+  ON key_points
+  FOR UPDATE
+  USING (
+    EXISTS (
+      SELECT 1 FROM documents
+      WHERE documents.id = key_points.document_id
+      AND documents.user_id = auth.uid()
+    )
+  );
+
+CREATE POLICY "Users can delete key points for their documents"
+  ON key_points
+  FOR DELETE
+  USING (
+    EXISTS (
+      SELECT 1 FROM documents
+      WHERE documents.id = key_points.document_id
+      AND documents.user_id = auth.uid()
+    )
+  );
+
+-- Create storage bucket for PDFs
+INSERT INTO storage.buckets (id, name, public)
+VALUES ('pdfs', 'pdfs', false)
+ON CONFLICT (id) DO NOTHING;
+
+-- Create storage policies for PDFs
+CREATE POLICY "Users can upload their own PDFs"
+  ON storage.objects
+  FOR INSERT
+  WITH CHECK (
+    bucket_id = 'pdfs' AND
+    auth.uid()::text = (storage.foldername(name))[1]
+  );
+
+CREATE POLICY "Users can view their own PDFs"
+  ON storage.objects
+  FOR SELECT
+  USING (
+    bucket_id = 'pdfs' AND
+    auth.uid()::text = (storage.foldername(name))[1]
+  );
+
+CREATE POLICY "Users can update their own PDFs"
+  ON storage.objects
+  FOR UPDATE
+  USING (
+    bucket_id = 'pdfs' AND
+    auth.uid()::text = (storage.foldername(name))[1]
+  );
+
+CREATE POLICY "Users can delete their own PDFs"
+  ON storage.objects
+  FOR DELETE
+  USING (
+    bucket_id = 'pdfs' AND
+    auth.uid()::text = (storage.foldername(name))[1]
   );
 
 -- Create a function to calculate clause stats

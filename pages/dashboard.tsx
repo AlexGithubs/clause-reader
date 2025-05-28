@@ -92,10 +92,10 @@ const Dashboard: NextPage = () => {
           className={styles.filterSelect}
         >
           <option value="">All Labels</option>
-          <option value="good">Good</option>
-          <option value="bad">Bad</option>
+          <option value="favorable">Favorable</option>
+          <option value="unfavorable">Unfavorable</option>
           <option value="harsh">Harsh</option>
-          <option value="free">Free</option>
+          <option value="standard provision">Standard</option>
         </select>
         
         <select 
@@ -117,10 +117,8 @@ const Dashboard: NextPage = () => {
         <DeepSummary searchQuery={searchQuery} filter={filter} />
       )}
 
-      {/* Only show ClauseList if at least one document exists */}
-      {localStorage.getItem('latestFileId') ? (
+      {/* Always show ClauseList - it will handle empty state internally */}
       <ClauseList searchQuery={searchQuery} filter={filter} />
-      ) : null}
     </div>
   );
 };

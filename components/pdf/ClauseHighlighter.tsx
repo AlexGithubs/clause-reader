@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import PDFViewer from './PDFViewer';
 import styles from '@/styles/ClauseHighlighter.module.css';
+import { useAuth } from '@/components/auth/AuthContext';
 
 interface Clause {
   id: string;
@@ -23,6 +24,7 @@ interface ClauseHighlighterProps {
 }
 
 const ClauseHighlighter: React.FC<ClauseHighlighterProps> = ({ pdfUrl, fileId }) => {
+  const { user } = useAuth();
   const [clauses, setClauses] = useState<Clause[]>([]);
   const [selectedClause, setSelectedClause] = useState<Clause | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
@@ -30,69 +32,89 @@ const ClauseHighlighter: React.FC<ClauseHighlighterProps> = ({ pdfUrl, fileId })
   const [fullText, setFullText] = useState<string>('');
   const [pdfData, setPdfData] = useState<string | null>(null);
 
-  // Fetch clauses and PDF data for the PDF from localStorage
+  // Fetch clauses and PDF data from the database
   useEffect(() => {
-    if (!fileId) {
-      setError('No file ID provided.');
+    if (!fileId || !user) {
+      if (!fileId) {
+        setError('No file ID provided.');
+      }
       setLoading(false);
       return;
     }
 
-    setLoading(true);
-    setError(null);
-    console.log(`ClauseHighlighter: Attempting to load data for fileId: ${fileId} from localStorage.`);
+    const fetchClauseData = async () => {
+      setLoading(true);
+      setError(null);
+      console.log(`ClauseHighlighter: Attempting to load data for fileId: ${fileId} from database.`);
 
-    try {
-      const documentKey = `document_${fileId}`;
-      const storedData = localStorage.getItem(documentKey);
+      try {
+        // Fetch user documents from database
+        const response = await fetch(`/api/user-documents?userId=${user.id}`);
         
-      if (storedData) {
-        console.log(`ClauseHighlighter: Found data in localStorage for key: ${documentKey}`);
-        const data = JSON.parse(storedData);
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || 'Failed to fetch documents');
+        }
         
-        if (data && data.highlightedClauses) {
-             // Handle both possible property names (though highlightedClauses should be correct now)
-            const clausesData = data.highlightedClauses || data.clauses || [];
-            setClauses(clausesData);
-             console.log(`ClauseHighlighter: Loaded ${clausesData.length} clauses from localStorage.`);
+        const data = await response.json();
+        const documents = data.documents || [];
+        
+        // Find the specific document
+        const document = documents.find((doc: any) => doc.id === fileId);
+        
+        if (!document) {
+          setError(`Document ${fileId} not found. Please try re-uploading.`);
+          setClauses([]);
+          setLoading(false);
+          return;
+        }
+        
+        console.log(`ClauseHighlighter: Found document in database: ${document.id}`);
+        
+        // Set clauses data
+        const clausesData = (document.clauses || []).map((clause: any) => ({
+          id: clause.id,
+          text: clause.text,
+          page: clause.page || 1,
+          position: clause.position || {
+            top: 100,
+            left: 50,
+            width: 500,
+            height: 30
+          },
+          tags: clause.tags || [],
+          label: clause.label,
+          explanation: clause.explanation
+        }));
+        
+        setClauses(clausesData);
+        console.log(`ClauseHighlighter: Loaded ${clausesData.length} clauses from database.`);
         
         // Set the full text if available
-        if (data.fullText) {
-          setFullText(data.fullText);
-            } else {
-               console.warn("ClauseHighlighter: fullText not found in localStorage data.");
-               setFullText(''); // Ensure it's reset if not found
-            }
-
-            // Set the PDF base64 data if available
-            if (data.fileContentBase64) {
-              setPdfData(data.fileContentBase64);
-              console.log("ClauseHighlighter: Loaded PDF base64 data from localStorage.");
-            } else {
-               console.error("ClauseHighlighter: fileContentBase64 not found in localStorage data.");
-               setError('Stored document data is missing PDF content.');
-               setPdfData(null);
-            }
-            setError(null);
+        if (document.full_text) {
+          setFullText(document.full_text);
         } else {
-             console.error("ClauseHighlighter: Parsed localStorage data is missing highlightedClauses.", data);
-             setError('Stored clause data is invalid or missing clauses.');
-             setClauses([]);
+          console.warn("ClauseHighlighter: fullText not found in document data.");
+          setFullText('');
         }
-      } else {
-        console.error(`ClauseHighlighter: No data found in localStorage for key: ${documentKey}`);
-        setError(`Analysis data for document ${fileId} not found. Please try re-uploading.`);
-        setClauses([]);
-        }
+
+        // For PDF data, we'll need to fetch it from storage
+        // For now, we'll use the pdfUrl prop instead of base64 data
+        setPdfData(null); // We'll rely on pdfUrl instead
+        
+        setError(null);
+        
       } catch (err) {
-      console.error('ClauseHighlighter: Error loading or parsing data from localStorage:', err);
-      setError('Failed to load clause data from storage.');
-      setClauses([]);
+        console.error('ClauseHighlighter: Error loading data from database:', err);
+        setError(err instanceof Error ? err.message : 'Failed to load clause data from database.');
+        setClauses([]);
       } finally {
         setLoading(false);
       }
+    };
 
-  }, [fileId]); // Rerun when fileId changes
+    fetchClauseData();
+  }, [fileId, user]);
 
   // Handle clause selection
   const handleClauseClick = (clauseId: string) => {
@@ -135,6 +157,7 @@ const ClauseHighlighter: React.FC<ClauseHighlighterProps> = ({ pdfUrl, fileId })
           <div className={styles.pdfSection}>
             <PDFViewer 
               pdfData={pdfData}
+              pdfUrl={pdfUrl}
               fullText={fullText}
               clauses={transformedClauses}
               onClauseClick={handleClauseClick}
