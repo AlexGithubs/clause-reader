@@ -40,6 +40,14 @@ export type Document = {
   status: 'pending' | 'processing' | 'completed' | 'error';
   full_text?: string;
   summary?: string;
+  user_party?: string;
+  contract_type?: string;
+  role_validation?: {
+    isRelevant: boolean;
+    confidence: number;
+    suggestions: string[];
+    selectedRole: string;
+  };
 }
 
 export type Clause = {

@@ -6,6 +6,7 @@ CREATE TABLE IF NOT EXISTS documents (
   file_path TEXT NOT NULL,
   full_text TEXT,
   summary TEXT,
+  user_party TEXT CHECK (user_party IN ('party_a', 'party_b', 'buyer', 'seller', 'client', 'contractor', 'employer', 'employee', 'landlord', 'tenant', 'other')),
   status TEXT NOT NULL CHECK (status IN ('pending', 'processing', 'completed', 'error')),
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );

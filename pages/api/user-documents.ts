@@ -73,6 +73,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             created_at: doc.created_at,
             file_path: doc.file_path,
             full_text: doc.full_text,
+            contract_type: doc.contract_type,
+            role_validation: doc.role_validation,
             clauses: clauses.map(clause => {
               const label = scoreToLabel(clause.score);
               const benchmark = scoreToBenchmark(clause.score, clause.tags);
@@ -101,6 +103,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             created_at: doc.created_at,
             file_path: doc.file_path,
             full_text: doc.full_text,
+            contract_type: doc.contract_type,
+            role_validation: doc.role_validation,
             clauses: [],
             keyPoints: []
           };

@@ -3,6 +3,21 @@
  * Provides helper functions for authentication operations
  */
 
+// Extend Window interface to include netlifyIdentity
+declare global {
+  interface Window {
+    netlifyIdentity: {
+      currentUser(): User | null;
+      login(options: any, callback?: (error: Error) => void): void;
+      signup(options: any, callback?: (error: Error) => void): void;
+      logout(): void;
+      refresh(): void;
+      on(event: string, callback: (user?: User) => void): void;
+      off(event: string, callback: (user?: User) => void): void;
+    };
+  }
+}
+
 // Type definitions
 export interface User {
     id: string;
@@ -139,9 +154,9 @@ export interface User {
       );
       
       // Listen for login event
-      const loginHandler = (user: User) => {
+      const loginHandler = (user?: User) => {
         window.netlifyIdentity.off('login', loginHandler);
-        resolve(user);
+        if (user) resolve(user);
       };
       
       window.netlifyIdentity.on('login', loginHandler);
@@ -185,9 +200,9 @@ export interface User {
       );
       
       // Listen for signup event
-      const signupHandler = (user: User) => {
+      const signupHandler = (user?: User) => {
         window.netlifyIdentity.off('signup', signupHandler);
-        resolve(user);
+        if (user) resolve(user);
       };
       
       window.netlifyIdentity.on('signup', signupHandler);

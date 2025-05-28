@@ -12,6 +12,12 @@ BEGIN
                    WHERE table_name = 'documents' AND column_name = 'full_text') THEN
         ALTER TABLE documents ADD COLUMN full_text TEXT;
     END IF;
+    
+    -- Add user_party column if it doesn't exist
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                   WHERE table_name = 'documents' AND column_name = 'user_party') THEN
+        ALTER TABLE documents ADD COLUMN user_party TEXT CHECK (user_party IN ('party_a', 'party_b', 'buyer', 'seller', 'client', 'contractor', 'employer', 'employee', 'landlord', 'tenant', 'other'));
+    END IF;
 END $$;
 
 -- Create key_points table if it doesn't exist

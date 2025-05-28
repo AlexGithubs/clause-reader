@@ -7,22 +7,30 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   try {
-    const { fileName, fileContentBase64, userId } = req.body;
+    const { fileName, fileContentBase64, userId, userParty } = req.body;
 
-    if (!fileName || !fileContentBase64 || !userId) {
+    if (!fileName || !fileContentBase64 || !userId || !userParty) {
       return res.status(400).json({ 
-        error: 'Missing required fields: fileName, fileContentBase64, userId' 
+        error: 'Missing required fields: fileName, fileContentBase64, userId, userParty' 
       });
     }
 
-    console.log(`Uploading PDF for user ${userId}: ${fileName}`);
+    // Validate userParty value
+    const validParties = ['party_a', 'party_b', 'buyer', 'seller', 'client', 'contractor', 'employer', 'employee', 'landlord', 'tenant', 'other'];
+    if (!validParties.includes(userParty)) {
+      return res.status(400).json({ 
+        error: 'Invalid userParty value' 
+      });
+    }
+
+    console.log(`Uploading PDF for user ${userId}: ${fileName} (Party: ${userParty})`);
 
     // Upload PDF to Supabase storage
     const { filePath, publicUrl } = await uploadPdf(userId, fileName, fileContentBase64);
     console.log(`PDF uploaded to storage: ${filePath}`);
 
-    // Create document record in database
-    const documentId = await createDocument(userId, fileName, filePath);
+    // Create document record in database with user party
+    const documentId = await createDocument(userId, fileName, filePath, undefined, userParty);
     console.log(`Document record created: ${documentId}`);
 
     return res.status(200).json({
@@ -31,6 +39,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       fileName,
       filePath,
       publicUrl,
+      userParty,
       message: 'PDF uploaded successfully'
     });
 

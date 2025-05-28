@@ -2,7 +2,7 @@ import { getSupabaseAdmin } from './supabase';
 import { Document, Clause } from './supabase';
 import { v4 as uuidv4 } from 'uuid';
 
-export async function createDocument(userId: string, name: string, filePath: string, fullText?: string) {
+export async function createDocument(userId: string, name: string, filePath: string, fullText?: string, userParty?: string) {
     const documentId = `processed-${uuidv4()}`;
     
     const { data, error } = await getSupabaseAdmin()
@@ -14,6 +14,7 @@ export async function createDocument(userId: string, name: string, filePath: str
         file_path: filePath,
         status: 'pending',
         full_text: fullText,
+        user_party: userParty,
       });
       
     if (error) {

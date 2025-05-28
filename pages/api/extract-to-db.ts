@@ -40,6 +40,55 @@ function stripMarkdown(text: string): string {
   return text;
 }
 
+// Helper function to detect contract type
+async function detectContractType(text: string): Promise<string> {
+  try {
+    const completion = await openai.chat.completions.create({
+      model: "gpt-3.5-turbo",
+      messages: [
+        { 
+          role: "system", 
+          content: "You are a legal AI that identifies contract types. Respond with only one word from: employment, real_estate, software, service, sales, nda, partnership, licensing, consulting, other" 
+        },
+        { 
+          role: "user", 
+          content: `What type of contract is this? ${text.substring(0, 2000)}` 
+        }
+      ],
+    });
+    
+    return completion.choices[0]?.message?.content?.trim().toLowerCase() || 'other';
+  } catch (error) {
+    console.error('Error detecting contract type:', error);
+    return 'other';
+  }
+}
+
+// Helper function to validate role relevance
+function validateRoleForContract(userParty: string, contractType: string): { isRelevant: boolean; confidence: number; suggestions: string[] } {
+  const roleMapping: Record<string, string[]> = {
+    'employment': ['employee', 'employer'],
+    'real_estate': ['landlord', 'tenant', 'buyer', 'seller'],
+    'software': ['licensee', 'licensor', 'client', 'contractor'],
+    'service': ['client', 'contractor', 'service_provider'],
+    'sales': ['buyer', 'seller', 'vendor', 'customer'],
+    'nda': ['disclosing_party', 'receiving_party'],
+    'licensing': ['licensee', 'licensor'],
+    'consulting': ['client', 'consultant', 'contractor'],
+    'other': ['party_a', 'party_b', 'other']
+  };
+
+  const relevantRoles = roleMapping[contractType] || [];
+  const isRelevant = relevantRoles.some(role => 
+    userParty.includes(role) || role.includes(userParty)
+  );
+  
+  const confidence = isRelevant ? 0.8 : 0.2;
+  const suggestions = relevantRoles;
+
+  return { isRelevant, confidence, suggestions };
+}
+
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
@@ -58,6 +107,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     // Update document status to processing
     await updateDocumentStatus(documentId, 'processing');
+
+    // Get document details to retrieve user party
+    const document = await getDocumentById(documentId);
+    const userParty = document.user_party || 'other';
+    console.log(`User party for analysis: ${userParty}`);
 
     // Decode base64 content to Buffer
     let pdfBuffer: Buffer;
@@ -103,6 +157,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       console.error("Extraction yielded no text content.");
       await updateDocumentStatus(documentId, 'error');
       return res.status(500).json({ error: 'No text content could be extracted from the PDF' });
+    }
+
+    // Detect contract type and validate role relevance
+    console.log("Detecting contract type...");
+    const contractType = await detectContractType(extractedText);
+    const roleValidation = validateRoleForContract(userParty, contractType);
+    
+    console.log(`Contract type detected: ${contractType}`);
+    console.log(`Role relevance: ${roleValidation.isRelevant ? 'relevant' : 'questionable'} (confidence: ${roleValidation.confidence})`);
+    
+    if (!roleValidation.isRelevant) {
+      console.warn(`⚠️  Potential role mismatch: ${userParty} for ${contractType} contract. Suggested roles: ${roleValidation.suggestions.join(', ')}`);
     }
 
     // Generate summary using OpenAI
@@ -160,11 +226,24 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
       console.log(`Processing Page ${currentPageNumber} for clauses... (Text length: ${pageText.length})`);
 
-      const perPagePrompt = `Extract important clauses from the following text (representing Page ${currentPageNumber}). For EACH clause, provide:
+      // Create party-specific context for analysis
+      const partyContext = userParty === 'other' 
+        ? "Analyze from a general perspective" 
+        : `Analyze from the perspective of the ${userParty}`;
+
+      // Adjust analysis approach based on role relevance
+      const analysisApproach = roleValidation.isRelevant 
+        ? `${partyContext} - determine if each clause is favorable, unfavorable, harsh, or a standard provision FOR THE ${userParty.toUpperCase()}.`
+        : `Analyze from a general business perspective, noting potential risks and benefits. The user selected "${userParty}" but this appears to be a ${contractType} contract, so provide balanced analysis.`;
+
+      const perPagePrompt = `Extract important clauses from the following text (representing Page ${currentPageNumber}). ${analysisApproach}
+
+For EACH clause, provide:
 *   "text": The verbatim clause text.
 *   "tags": A JSON array of relevant keyword tags.
-*   "label": One of 'favorable', 'unfavorable', 'harsh', 'standard provision'.
-*   "explanation": A brief (1 sentence) explanation of the clause's meaning or implication.
+*   "label": One of 'favorable', 'unfavorable', 'harsh', 'standard provision'${roleValidation.isRelevant ? ` (from the ${userParty}'s perspective)` : ' (from a general perspective)'}.
+*   "explanation": A brief (1 sentence) explanation of why this clause is favorable/unfavorable${roleValidation.isRelevant ? ` for the ${userParty}` : ' in general business terms'}.
+
 Format the output STRICTLY as a JSON array of these clause objects. Output ONLY the raw JSON array. Text:
 ${pageText}`;
 
@@ -257,7 +336,14 @@ ${pageText}`;
       .update({ 
         summary,
         full_text: extractedText,
-        status: 'completed'
+        status: 'completed',
+        contract_type: contractType,
+        role_validation: {
+          isRelevant: roleValidation.isRelevant,
+          confidence: roleValidation.confidence,
+          suggestions: roleValidation.suggestions,
+          selectedRole: userParty
+        }
       })
       .eq('id', documentId);
 
@@ -295,6 +381,13 @@ ${pageText}`;
       summary,
       keyPointsCount: keyPoints.length,
       clausesCount: clausesWithActualPositions.length,
+      contractType,
+      roleValidation: {
+        isRelevant: roleValidation.isRelevant,
+        confidence: roleValidation.confidence,
+        suggestions: roleValidation.suggestions,
+        selectedRole: userParty
+      },
       message: 'Document processed successfully'
     });
 

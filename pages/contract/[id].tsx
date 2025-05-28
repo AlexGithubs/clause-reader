@@ -4,6 +4,7 @@ import Head from 'next/head';
 import Link from 'next/link';
 import ClauseHighlighter from '@/components/pdf/ClauseHighlighter';
 import ContractChat from '@/components/chat/ContractChat';
+import RoleMismatchWarning from '@/components/layout/RoleMismatchWarning';
 import styles from '@/styles/ContractPage.module.css';
 import { useAuth } from '@/components/auth/AuthContext';
 
@@ -14,6 +15,13 @@ interface ContractData {
   highlightedClauses: any[];
   fullText?: string;
   filePath?: string;
+  contractType?: string;
+  roleValidation?: {
+    isRelevant: boolean;
+    confidence: number;
+    suggestions: string[];
+    selectedRole: string;
+  };
 }
 
 const ContractPage = () => {
@@ -82,7 +90,9 @@ const ContractPage = () => {
               benchmark: clause.benchmark
             })),
             fullText: document.full_text,
-            filePath: document.file_path
+            filePath: document.file_path,
+            contractType: document.contract_type,
+            roleValidation: document.role_validation
           };
           
           setContractData(transformedData);
@@ -200,6 +210,15 @@ const ContractPage = () => {
             </Link>
           </div>
         </div>
+
+        {/* Role Mismatch Warning */}
+        {contractData.contractType && contractData.roleValidation && (
+          <RoleMismatchWarning
+            contractType={contractData.contractType}
+            roleValidation={contractData.roleValidation}
+            documentId={contractData.fileId}
+          />
+        )}
 
         <div className={styles.summary}>
           <h2>Summary</h2>
